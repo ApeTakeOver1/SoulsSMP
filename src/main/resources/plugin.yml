@@ -1,0 +1,8 @@
+name: SoulsSMP
+version: '${version}'
+
+main: net.ape.soulsSMP.SoulsSMP
+api-version: '1.21.11'
+load: STARTUP
+
+authors: [ApeTakeOver, random_revilo]
