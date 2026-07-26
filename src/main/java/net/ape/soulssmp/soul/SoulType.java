@@ -1,4 +1,8 @@
 package net.ape.soulssmp.soul;
 
-public class SoulType {
+public enum SoulType {
+
+    VOID,
+    BLOOD
+
 }

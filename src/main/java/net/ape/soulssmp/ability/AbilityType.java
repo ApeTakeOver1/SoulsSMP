@@ -1,4 +1,7 @@
 package net.ape.soulssmp.ability;
 
-public class AbilityType {
+public enum AbilityType {
+    VOID_STEP,
+    NULL_FIELD,
+    ABYSS_MARK
 }
