@@ -114,6 +114,7 @@ public class BloodHands extends Ability {
     private void applyBleed(LivingEntity target, Player caster) {
         int totalTicks = PUNCTURE_BLEED_SECONDS;
         for (int i = 1; i <= totalTicks; i++) {
+            final int tick = i;
             Bukkit.getScheduler().runTaskLater(SoulsSMP.getInstance(), () -> {
                 if (target.isDead() || !target.isValid()) return;
 
@@ -124,10 +125,10 @@ public class BloodHands extends Ability {
                         new Particle.DustOptions(Color.fromRGB(150, 0, 0), 1.0f)
                 );
 
-                if (i == totalTicks) {
+                if (tick == totalTicks) {
                     ruptureBurst(target, caster);
                 }
-            }, i * 20L);
+            }, tick * 20L);
         }
     }
 

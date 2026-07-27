@@ -6,11 +6,11 @@ import net.ape.soulssmp.ability.AbilityType;
 import net.ape.soulssmp.soul.SoulType;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
-import org.bukkit.FallingBlock;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -132,7 +132,7 @@ public class Curse extends Ability {
             fallingBlock.setHurtEntities(false);
         }
 
-        target.getWorld().spawnParticle(Particle.DRIPPING_DRAGON_BREATH, cloudCenter, 15, 0.5, 0.3, 0.5, 0.02);
+        target.getWorld().spawnParticle(Particle.DRAGON_BREATH, cloudCenter, 15, 0.5, 0.3, 0.5, 0.02);
         target.getWorld().playSound(target, Sound.WEATHER_RAIN_ABOVE, 0.6f, 0.5f);
     }
 

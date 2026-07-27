@@ -35,7 +35,7 @@ public class Hemorrhage extends Ability {
         SoulsSMP.getInstance().getHemorrhageManager()
                 .applyMark(target.getUniqueId(), player.getUniqueId(), MARK_DURATION_SECONDS);
 
-        target.getWorld().spawnParticle(Particle.BLOCK_CRACK, target.getLocation().add(0, 1, 0), 20,
+        target.getWorld().spawnParticle(Particle.BLOCK_CRUMBLE, target.getLocation().add(0, 1, 0), 20,
                 0.3, 0.5, 0.3, org.bukkit.Material.REDSTONE_BLOCK.createBlockData());
         player.sendMessage("§4§lBlood §7» §cTarget's blood corrupted.");
         return true;
