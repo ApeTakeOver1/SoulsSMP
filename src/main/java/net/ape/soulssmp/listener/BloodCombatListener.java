@@ -1,13 +1,13 @@
 package net.ape.soulssmp.listener;
 
 import net.ape.soulssmp.SoulsSMP;
-import net.ape.soulssmp.ability.AbilityType;
 import net.ape.soulssmp.player.PlayerData;
 import net.ape.soulssmp.soul.SoulType;
 import net.ape.soulssmp.soul.types.bloodsoul.BloodPassiveTask;
 import net.ape.soulssmp.soul.types.bloodsoul.HemorrhageManager;
-import net.ape.soulssmp.soul.types.bloodsoul.RestraintManager;
+import org.bukkit.Color;
 import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -77,38 +77,51 @@ public class BloodCombatListener implements Listener {
         int stacks = hemorrhageManager.registerHit(target.getUniqueId(), attacker.getUniqueId());
         if (stacks <= 0) return;
 
-        if (stacks == 2 && target instanceof Player) {
-            target.setGlowing(true);
-            attacker.sendMessage("§4§lBlood §7» §cHemorrhage 2/5 - target glowing.");
-        }
+        switch (stacks) {
+            case 1 -> attacker.sendMessage("§4§lHemorrhage §7» §c1/5");
 
-        if (stacks == 3 && target instanceof Player targetPlayer) {
-            SoulsSMP.getInstance().getRestraintManager()
-                    .addRestraint(targetPlayer.getUniqueId(), attacker.getUniqueId(), 10.0, false, 30);
-            targetPlayer.sendMessage("§4§lBlood §7» §cYou are bound - you cannot leave the radius.");
-            attacker.sendMessage("§4§lBlood §7» §cHemorrhage 3/5 - target bound.");
-        }
+            case 2 -> {
+                if (target instanceof Player) {
+                    target.setGlowing(true);
+                }
+                attacker.sendMessage("§4§lHemorrhage §7» §c2/5 §7- Target Marked");
+            }
 
-        if (stacks >= 5) {
-            triggerRupture(target, attacker);
-            hemorrhageManager.clearMark(target.getUniqueId());
+            case 3 -> {
+                if (target instanceof Player targetPlayer) {
+                    SoulsSMP.getInstance().getRestraintManager()
+                            .addRestraint(targetPlayer.getUniqueId(), attacker.getUniqueId(), 10.0, false, 30);
+                    targetPlayer.sendMessage("§4§lBlood §7» §cYou are bound - you cannot leave the radius.");
+                }
+                attacker.sendMessage("§4§lHemorrhage §7» §c3/5 §7- Target Tethered");
+            }
+
+            case 4 -> attacker.sendMessage("§4§lHemorrhage §7» §c4/5");
+
+            default -> {
+                // Clear the mark BEFORE dealing rupture damage to avoid the
+                // recursive rupture loop from re-firing this event.
+                hemorrhageManager.clearMark(target.getUniqueId());
+                attacker.sendMessage("§4§lHemorrhage §7» §c5/5 §7- RUPTURE");
+                triggerRupture(target, attacker);
+            }
         }
     }
 
     private void triggerRupture(LivingEntity target, Player attacker) {
         target.getWorld().spawnParticle(Particle.DUST, target.getLocation().add(0, 1, 0), 40, 1, 1, 1, 0,
-                new Particle.DustOptions(org.bukkit.Color.fromRGB(180, 0, 0), 1.6f));
-        target.getWorld().playSound(target.getLocation(), org.bukkit.Sound.ENTITY_GENERIC_EXPLODE, 0.6f, 1.2f);
+                new Particle.DustOptions(Color.fromRGB(180, 0, 0), 1.6f));
+        target.getWorld().playSound(target.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.6f, 1.2f);
 
-        target.damage(5.0, attacker);
+        double newHealth = Math.max(0, target.getHealth() - 5.0);
+        target.setHealth(newHealth);
 
         if (target instanceof Player targetPlayer) {
             var direction = targetPlayer.getLocation().getDirection().multiply(-1);
             targetPlayer.setVelocity(direction.multiply(1.3).setY(0.4));
             SoulsSMP.getInstance().getSilenceManager().applySilence(targetPlayer, 5);
             targetPlayer.setGlowing(false);
+            targetPlayer.sendTitle("§c§lRUPTURE", "§7Silenced for 5 seconds", 5, 40, 10);
         }
-
-        attacker.sendMessage("§4§lBlood §7» §cHemorrhage 5/5 - RUPTURE.");
     }
 }

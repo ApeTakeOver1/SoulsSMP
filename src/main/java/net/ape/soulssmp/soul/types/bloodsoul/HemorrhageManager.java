@@ -18,11 +18,13 @@ public class HemorrhageManager {
         }
     }
 
-    private final Map<UUID, MarkData> marks = new HashMap<>();
+    private final Map<UUID, MarkData> marks = new HashMap<>(); // targetId -> data
+    private final Map<UUID, UUID> markedTargetByCaster = new HashMap<>(); // casterId -> targetId
 
     public void applyMark(UUID targetId, UUID casterId, int durationSeconds) {
         long expiresAt = System.currentTimeMillis() + (durationSeconds * 1000L);
         marks.put(targetId, new MarkData(casterId, expiresAt));
+        markedTargetByCaster.put(casterId, targetId);
     }
 
     public boolean isMarkedBy(UUID targetId, UUID casterId) {
@@ -37,9 +39,6 @@ public class HemorrhageManager {
         return data.markedBy.equals(casterId);
     }
 
-    /**
-     * Registers a hit, returns the new stack count (1-5), or -1 if not marked.
-     */
     public int registerHit(UUID targetId, UUID casterId) {
         MarkData data = marks.get(targetId);
         if (data == null || !data.markedBy.equals(casterId)) return -1;
@@ -56,6 +55,34 @@ public class HemorrhageManager {
     }
 
     public void clearMark(UUID targetId) {
-        marks.remove(targetId);
+        MarkData data = marks.remove(targetId);
+        if (data != null) {
+            markedTargetByCaster.remove(data.markedBy);
+        }
+    }
+
+    /**
+     * Returns [stacks, secondsRemaining] for the caster's currently marked
+     * target, or null if they have no active mark. Used by the HUD to show
+     * a live "X/5" counter instead of a plain cooldown bar.
+     */
+    public int[] getCurrentMarkStatus(UUID casterId) {
+        UUID targetId = markedTargetByCaster.get(casterId);
+        if (targetId == null) return null;
+
+        MarkData data = marks.get(targetId);
+        if (data == null) {
+            markedTargetByCaster.remove(casterId);
+            return null;
+        }
+
+        long remainingMillis = data.expiresAt - System.currentTimeMillis();
+        if (remainingMillis <= 0) {
+            marks.remove(targetId);
+            markedTargetByCaster.remove(casterId);
+            return null;
+        }
+
+        return new int[]{data.stacks, (int) (remainingMillis / 1000) + 1};
     }
 }

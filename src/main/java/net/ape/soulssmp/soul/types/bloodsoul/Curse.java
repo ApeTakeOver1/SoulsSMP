@@ -7,10 +7,8 @@ import net.ape.soulssmp.soul.SoulType;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -22,20 +20,19 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Stuns the caster for 3s (Slowness/no-jump + ritual visuals + Darkness on
- * nearby players), then locks onto whatever the caster is looking at when
- * the channel ends, and applies one of 3 random debuffs to that target.
- */
 public class Curse extends Ability {
 
-    private static final int STUN_TICKS = 60; // 3s
+    private static final int STUN_TICKS = 60;
     private static final double RANGE = 20.0;
     private static final double DARKNESS_RADIUS = 10.0;
     private static final int RESTRICTION_DURATION_SECONDS = 20;
     private static final int SILENCE_DURATION_SECONDS = 30;
     private static final int PUPPET_DURATION_SECONDS = 20;
     private static final double PUPPET_RADIUS = 5.0;
+
+    private static final double CLOUD_HEIGHT = 6.0;
+    private static final double CLOUD_RADIUS = 2.0;
+    private static final int RAIN_DURATION_TICKS = 60;
 
     private final Random random = new Random();
 
@@ -82,11 +79,15 @@ public class Curse extends Ability {
             Location edge = new Location(center.getWorld(), x, center.getY() + 0.1, z);
             center.getWorld().spawnParticle(
                     Particle.DUST, edge, 2, 0, 0.1, 0, 0,
-                    new Particle.DustOptions(Color.fromRGB(140, 0, 0), 1.4f)
+                    new Particle.DustOptions(Color.fromRGB(120, 0, 0), 1.4f)
             );
         }
     }
 
+    /**
+     * Instead of randomly rolling an effect, this now opens a GUI letting
+     * the caster pick which of the 3 debuffs to apply themselves.
+     */
     private void resolveCurse(Player player) {
         LivingEntity target = getLockedTarget(player);
 
@@ -95,14 +96,10 @@ public class Curse extends Ability {
             return;
         }
 
-        rainBloodCloud(target.getLocation());
+        rainBloodCloud(target);
 
-        int roll = random.nextInt(3);
-        switch (roll) {
-            case 0 -> applyRestriction(target, player);
-            case 1 -> applySilence(target, player);
-            case 2 -> applyPuppet(target, player);
-        }
+        SoulsSMP.getInstance().getCursePendingManager().setPendingTarget(player.getUniqueId(), target);
+        CurseGUI.open(player);
     }
 
     private LivingEntity getLockedTarget(Player player) {
@@ -110,6 +107,7 @@ public class Curse extends Ability {
                 player.getEyeLocation(),
                 player.getEyeLocation().getDirection(),
                 RANGE,
+                0.4,
                 entity -> entity instanceof LivingEntity && !entity.equals(player)
         );
 
@@ -117,50 +115,87 @@ public class Curse extends Ability {
         return (LivingEntity) result.getHitEntity();
     }
 
-    private void rainBloodCloud(Location target) {
-        Location cloudCenter = target.clone().add(0, 6, 0);
+    private void rainBloodCloud(LivingEntity target) {
+        new org.bukkit.scheduler.BukkitRunnable() {
+            int elapsed = 0;
 
-        for (int i = 0; i < 6; i++) {
-            double offsetX = (random.nextDouble() - 0.5) * 2;
-            double offsetZ = (random.nextDouble() - 0.5) * 2;
-            Location spawnAt = cloudCenter.clone().add(offsetX, 0, offsetZ);
+            @Override
+            public void run() {
+                if (elapsed >= RAIN_DURATION_TICKS || target.isDead() || !target.isValid()) {
+                    this.cancel();
+                    return;
+                }
 
-            FallingBlock fallingBlock = spawnAt.getWorld().spawnFallingBlock(
-                    spawnAt, Material.RED_STAINED_GLASS.createBlockData()
-            );
-            fallingBlock.setDropItem(false);
-            fallingBlock.setHurtEntities(false);
-        }
+                Location base = target.getLocation();
+                Location cloudCenter = base.clone().add(0, CLOUD_HEIGHT, 0);
 
-        target.getWorld().spawnParticle(Particle.DRAGON_BREATH, cloudCenter, 15, 0.5, 0.3, 0.5, 0.02);
-        target.getWorld().playSound(target, Sound.WEATHER_RAIN_ABOVE, 0.6f, 0.5f);
+                drawCloudDisc(cloudCenter);
+                drawRaindrops(base, cloudCenter);
+
+                if (elapsed % 6 == 0) {
+                    base.getWorld().playSound(base, Sound.WEATHER_RAIN_ABOVE, 0.6f, 0.4f);
+                }
+
+                elapsed += 2;
+            }
+        }.runTaskTimer(SoulsSMP.getInstance(), 0L, 2L);
     }
 
-    private void applyRestriction(LivingEntity target, Player caster) {
-        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, RESTRICTION_DURATION_SECONDS * 20, 1, false, true, true));
-        target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, RESTRICTION_DURATION_SECONDS * 20, -1, false, true, true));
+    private void drawCloudDisc(Location cloudCenter) {
+        for (int i = 0; i < 14; i++) {
+            double angle = random.nextDouble() * Math.PI * 2;
+            double dist = random.nextDouble() * CLOUD_RADIUS;
+            double x = Math.cos(angle) * dist;
+            double z = Math.sin(angle) * dist;
+
+            Location point = cloudCenter.clone().add(x, (random.nextDouble() - 0.5) * 0.6, z);
+            cloudCenter.getWorld().spawnParticle(
+                    Particle.DUST, point, 1, 0, 0, 0, 0,
+                    new Particle.DustOptions(Color.fromRGB(80, 0, 0), 2.2f)
+            );
+        }
+    }
+
+    private void drawRaindrops(Location base, Location cloudCenter) {
+        for (int i = 0; i < 5; i++) {
+            double offsetX = (random.nextDouble() - 0.5) * CLOUD_RADIUS * 1.6;
+            double offsetZ = (random.nextDouble() - 0.5) * CLOUD_RADIUS * 1.6;
+            double dropHeight = random.nextDouble() * CLOUD_HEIGHT;
+
+            Location dropPoint = base.clone().add(offsetX, dropHeight, offsetZ);
+            base.getWorld().spawnParticle(
+                    Particle.DUST, dropPoint, 1, 0.02, 0.05, 0.02, 0,
+                    new Particle.DustOptions(Color.fromRGB(150, 0, 0), 1.1f)
+            );
+        }
+    }
+
+    public void applyRestriction(LivingEntity target, Player caster) {
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, RESTRICTION_DURATION_SECONDS * 20, 2, false, true, true));
+        target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, RESTRICTION_DURATION_SECONDS * 20, -10, false, true, true));
 
         if (target instanceof Player targetPlayer) {
             SoulsSMP.getInstance().getRestrictionManager().applyRestriction(targetPlayer, RESTRICTION_DURATION_SECONDS);
+            targetPlayer.sendTitle("§4§lRESTRICTED", "§7No sprint, slowed, can't jump", 10, 60, 10);
             targetPlayer.sendMessage("§4§lBlood §7» §cYou've been Restricted by the Curse.");
         }
 
         caster.sendMessage("§4§lBlood §7» §cCurse landed: §fRestriction");
     }
 
-    private void applySilence(LivingEntity target, Player caster) {
+    public void applySilence(LivingEntity target, Player caster) {
         if (target instanceof Player targetPlayer) {
             SoulsSMP.getInstance().getSilenceManager().applySilence(targetPlayer, SILENCE_DURATION_SECONDS);
+            targetPlayer.sendTitle("§4§lSILENCED", "§7Abilities cost more, mana regen crippled", 10, 60, 10);
             targetPlayer.sendMessage("§4§lBlood §7» §cYou've been Silenced by the Curse.");
         }
 
         caster.sendMessage("§4§lBlood §7» §cCurse landed: §fSilence");
     }
 
-    private void applyPuppet(LivingEntity target, Player caster) {
+    public void applyPuppet(LivingEntity target, Player caster) {
         if (!(target instanceof Player targetPlayer)) return;
 
-        // Immediate drag-in on application
         Location pullTo = caster.getLocation().clone().add(caster.getLocation().getDirection().multiply(-1.5));
         targetPlayer.teleport(pullTo);
 
@@ -169,6 +204,7 @@ public class Curse extends Ability {
 
         randomizeHotbar(targetPlayer);
 
+        targetPlayer.sendTitle("§4§lPUPPET", "§7You are bound to the Blood Soul", 10, 60, 10);
         targetPlayer.sendMessage("§4§lBlood §7» §cYou are now a Puppet of the Blood Soul.");
         caster.sendMessage("§4§lBlood §7» §cCurse landed: §fPuppet");
     }

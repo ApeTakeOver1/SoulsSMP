@@ -6,10 +6,10 @@ import net.ape.soulssmp.ability.AbilityType;
 import net.ape.soulssmp.soul.SoulType;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
@@ -21,20 +21,28 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Blood Soul's Ultimate. No mana cost - instead costs HP directly and runs
- * on cooldown alone. Grants a temporary lifesteal boost, then randomly
- * fires one of 3 effects: Sonic Clap, Puncture, or Control.
+ * Two modes sharing one trigger slot (Sneak + F), decided by current HP:
+ * - Above 5 hearts: "Blood Hands" - costs 10 HP (waived in Creative).
+ *   Sonic Clap ALWAYS fires (15-block radius). Control fires ADDITIONALLY
+ *   only if someone is within 5 blocks.
+ * - At or below 5 hearts: "Puncture" - free, needle burst, true damage.
  */
 public class BloodHands extends Ability {
 
+    public static final double PUNCTURE_HP_THRESHOLD = 10.0; // 5 hearts
+
     private static final double HP_COST = 10.0;
     private static final int LIFESTEAL_BOOST_SECONDS = 10;
-    private static final double SONIC_CLAP_RADIUS = 8.0;
+
+    private static final double SONIC_CLAP_RADIUS = 15.0;
     private static final int SONIC_CLAP_DURATION_SECONDS = 15;
-    private static final double PUNCTURE_RANGE = 20.0;
-    private static final int PUNCTURE_BLEED_SECONDS = 15;
-    private static final double CONTROL_RANGE = 10.0;
+
+    private static final double CONTROL_TRIGGER_RANGE = 5.0;
     private static final int CONTROL_HOLD_SECONDS = 10;
+
+    private static final double NEEDLE_RANGE = 300.0;
+    private static final double NEEDLE_HIT_TOLERANCE = 0.6;
+    private static final double NEEDLE_DAMAGE = 1.0; // half a heart, true damage
 
     private final Random random = new Random();
 
@@ -44,124 +52,120 @@ public class BloodHands extends Ability {
 
     @Override
     public boolean execute(Player player) {
-        if (player.getHealth() <= HP_COST + 0.5) {
-            player.sendMessage("§4§lBlood §7» §cNot enough health to sacrifice for Blood Hands.");
-            return false;
+        if (player.getHealth() <= PUNCTURE_HP_THRESHOLD) {
+            return executePuncture(player);
+        }
+        return executeBloodHands(player);
+    }
+
+    private boolean executeBloodHands(Player player) {
+        boolean creative = player.getGameMode() == GameMode.CREATIVE;
+
+        if (!creative) {
+            if (player.getHealth() <= HP_COST + 0.5) {
+                player.sendMessage("§4§lBlood §7» §cNot enough health to sacrifice for Blood Hands.");
+                return false;
+            }
+            player.setHealth(player.getHealth() - HP_COST);
         }
 
-        player.setHealth(player.getHealth() - HP_COST);
         SoulsSMP.getInstance().getBloodCombatListener()
                 .applyLifestealBoost(player.getUniqueId(), LIFESTEAL_BOOST_SECONDS);
 
         player.sendMessage("§4§lBlood §7» §cBlood Hands unleashed.");
 
-        int roll = random.nextInt(3);
-        switch (roll) {
-            case 0 -> sonicClap(player);
-            case 1 -> puncture(player);
-            case 2 -> control(player);
+        sonicClap(player);
+
+        if (hasNearbyTarget(player, CONTROL_TRIGGER_RANGE)) {
+            control(player);
         }
 
         return true;
     }
 
+    private boolean hasNearbyTarget(Player player, double range) {
+        for (var entity : player.getNearbyEntities(range, range, range)) {
+            if (entity instanceof Player target && !target.getUniqueId().equals(player.getUniqueId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Always part of Blood Hands. Flashes the 15-block boundary as an
+     * expanding ring so everyone can see the danger zone, then hits
+     * everyone caught inside with Blindness + Silence.
+     */
     private void sonicClap(Player player) {
         Location center = player.getLocation();
 
-        player.getWorld().playSound(center, Sound.ENTITY_WARDEN_SONIC_BOOM, 1.0f, 0.7f);
-        player.getWorld().spawnParticle(Particle.CRIMSON_SPORE, center, 60, 3, 2, 3, 0.05);
-        player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, center, 3, 1, 0.5, 1, 0);
+        player.getWorld().playSound(center, Sound.ENTITY_WARDEN_SONIC_BOOM, 1.0f, 0.6f);
+        player.getWorld().playSound(center, Sound.ENTITY_ENDER_DRAGON_GROWL, 0.6f, 1.8f);
+        player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, center, 4, 1, 0.5, 1, 0);
+
+        flashRadiusRing(center, SONIC_CLAP_RADIUS);
 
         for (var entity : center.getWorld().getNearbyEntities(center, SONIC_CLAP_RADIUS, SONIC_CLAP_RADIUS, SONIC_CLAP_RADIUS)) {
             if (!(entity instanceof Player target) || target.getUniqueId().equals(player.getUniqueId())) continue;
 
             target.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, SONIC_CLAP_DURATION_SECONDS * 20, 0, false, true, true));
             SoulsSMP.getInstance().getSilenceManager().applySilence(target, SONIC_CLAP_DURATION_SECONDS);
+            target.sendTitle("§4§lSILENCED", "§7Sonic Clap blinded and silenced you", 5, 40, 10);
             target.sendMessage("§4§lBlood §7» §cSonic Clap silenced and blinded you.");
         }
 
         player.sendMessage("§4§lBlood §7» §fSonic Clap");
     }
 
-    private void puncture(Player player) {
-        LivingEntity target = getTarget(player, PUNCTURE_RANGE);
-        if (target == null) {
-            player.sendMessage("§4§lBlood §7» §7Puncture found no target.");
-            return;
-        }
+    /**
+     * Rapidly expanding ring, drawn several times over half a second, so the
+     * 15-block boundary reads as a visible "flash" rather than a static ring.
+     */
+    private void flashRadiusRing(Location center, double radius) {
+        for (int pulse = 0; pulse < 3; pulse++) {
+            long delay = pulse * 3L;
+            double currentRadius = radius * ((pulse + 1) / 3.0);
 
-        // Blood arrow visual - a fast traveling particle line from caster to target
-        Location start = player.getEyeLocation();
-        Location end = target.getLocation().add(0, 1, 0);
-        var direction = end.toVector().subtract(start.toVector()).normalize();
-        double distance = start.distance(end);
-
-        for (double d = 0; d < distance; d += 0.5) {
-            Location point = start.clone().add(direction.clone().multiply(d));
-            player.getWorld().spawnParticle(
-                    Particle.DUST, point, 3, 0.05, 0.05, 0.05, 0,
-                    new Particle.DustOptions(Color.fromRGB(150, 0, 0), 1.3f)
-            );
-        }
-        player.getWorld().playSound(end, Sound.ENTITY_ARROW_HIT_PLAYER, 0.8f, 0.7f);
-
-        target.damage(4.0, player);
-        applyBleed(target, player);
-
-        player.sendMessage("§4§lBlood §7» §fPuncture");
-    }
-
-    private void applyBleed(LivingEntity target, Player caster) {
-        int totalTicks = PUNCTURE_BLEED_SECONDS;
-        for (int i = 1; i <= totalTicks; i++) {
-            final int tick = i;
             Bukkit.getScheduler().runTaskLater(SoulsSMP.getInstance(), () -> {
-                if (target.isDead() || !target.isValid()) return;
-
-                target.damage(1.0);
-                target.getWorld().playSound(target.getLocation(), Sound.ENTITY_PLAYER_HURT_DROWN, 0.3f, 0.6f);
-                target.getWorld().spawnParticle(
-                        Particle.DUST, target.getLocation().add(0, 1, 0), 3, 0.2, 0.3, 0.2, 0,
-                        new Particle.DustOptions(Color.fromRGB(150, 0, 0), 1.0f)
-                );
-
-                if (tick == totalTicks) {
-                    ruptureBurst(target, caster);
+                for (int i = 0; i < 360; i += 5) {
+                    double rad = Math.toRadians(i);
+                    double x = center.getX() + currentRadius * Math.cos(rad);
+                    double z = center.getZ() + currentRadius * Math.sin(rad);
+                    Location edge = new Location(center.getWorld(), x, center.getY() + 0.1, z);
+                    center.getWorld().spawnParticle(
+                            Particle.DUST, edge, 2, 0, 0.3, 0, 0,
+                            new Particle.DustOptions(Color.fromRGB(200, 0, 0), 1.4f)
+                    );
                 }
-            }, tick * 20L);
+            }, delay);
         }
     }
 
-    private void ruptureBurst(LivingEntity target, Player caster) {
-        target.getWorld().spawnParticle(Particle.DUST, target.getLocation().add(0, 1, 0), 40, 1, 1, 1,
-                0, new Particle.DustOptions(Color.fromRGB(180, 0, 0), 1.6f));
-        target.getWorld().playSound(target.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.6f, 1.2f);
-        target.damage(3.0, caster);
-
-        if (target instanceof Player targetPlayer) {
-            var direction = targetPlayer.getLocation().getDirection().multiply(-1);
-            targetPlayer.setVelocity(direction.multiply(1.2).setY(0.4));
-            SoulsSMP.getInstance().getSilenceManager().applySilence(targetPlayer, 5);
-        }
-    }
-
+    /**
+     * Grabs up to 2 targets within 5 blocks and holds them hovering directly
+     * in front of the caster, side by side, like two hands presenting them.
+     */
     private void control(Player player) {
         List<LivingEntity> targets = new ArrayList<>();
-        for (var entity : player.getNearbyEntities(CONTROL_RANGE, CONTROL_RANGE, CONTROL_RANGE)) {
+        for (var entity : player.getNearbyEntities(CONTROL_TRIGGER_RANGE, CONTROL_TRIGGER_RANGE, CONTROL_TRIGGER_RANGE)) {
             if (entity instanceof Player target && !target.getUniqueId().equals(player.getUniqueId())) {
                 targets.add(target);
             }
             if (targets.size() >= 2) break;
         }
 
-        if (targets.isEmpty()) {
-            player.sendMessage("§4§lBlood §7» §7Control found no targets.");
-            return;
-        }
+        if (targets.isEmpty()) return;
 
-        int offset = 2;
+        Location front = player.getLocation();
+        var forward = front.getDirection().setY(0).normalize();
+        var side = new org.bukkit.util.Vector(-forward.getZ(), 0, forward.getX());
+
+        int index = 0;
         for (LivingEntity target : targets) {
-            Location anchor = player.getLocation().clone().add(offset, 2, 0);
+            double sideOffset = index == 0 ? -0.8 : 0.8;
+            Location anchor = front.clone().add(forward.clone().multiply(2.5)).add(side.clone().multiply(sideOffset)).add(0, 1.2, 0);
+
             SoulsSMP.getInstance().getHoldManager().hold(target.getUniqueId(), anchor, CONTROL_HOLD_SECONDS);
 
             target.getWorld().spawnParticle(Particle.CRIMSON_SPORE, anchor, 25, 0.3, 0.5, 0.3, 0.02);
@@ -171,17 +175,95 @@ public class BloodHands extends Ability {
                 targetPlayer.sendMessage("§4§lBlood §7» §cYou're held in the Blood Hand's grasp.");
             }
 
-            offset *= -1; // alternate sides for the second target
+            index++;
         }
 
         player.sendMessage("§4§lBlood §7» §fControl");
     }
 
-    private LivingEntity getTarget(Player player, double range) {
+    private boolean executePuncture(Player player) {
+        LivingEntity target = getTargetEasy(player, NEEDLE_RANGE, NEEDLE_HIT_TOLERANCE);
+        if (target == null) {
+            player.sendMessage("§4§lBlood §7» §7Puncture found no target.");
+            return false;
+        }
+
+        int heartsRemaining = (int) Math.ceil(player.getHealth() / 2.0);
+        heartsRemaining = Math.max(0, Math.min(5, heartsRemaining));
+        int needleCount = 10 + 2 * (5 - heartsRemaining);
+
+        // Scale total fire duration between 2s (10 needles) and 5s (20 needles)
+        double durationSeconds = 2.0 + Math.max(0, (needleCount - 10) / 10.0) * 3.0;
+        durationSeconds = Math.max(2.0, Math.min(5.0, durationSeconds));
+        long intervalTicks = Math.max(1L, Math.round((durationSeconds * 20) / needleCount));
+
+        player.sendMessage("§4§lBlood §7» §fPuncture §7— " + needleCount + " needles over " + String.format("%.1f", durationSeconds) + "s.");
+
+        chargeFormation(player, () -> fireNeedleVolley(player, target, needleCount, 0, intervalTicks));
+        return true;
+    }
+
+    /**
+     * Brief "charging" burst behind the player before firing begins - a
+     * bunched cluster of particles that reads as needles forming up.
+     */
+    private void chargeFormation(Player player, Runnable onComplete) {
+        Location behind = player.getLocation().clone().subtract(player.getLocation().getDirection().multiply(1.2));
+        behind.add(0, 1, 0);
+
+        player.getWorld().playSound(player.getLocation(), Sound.BLOCK_AMETHYST_CLUSTER_BREAK, 0.7f, 0.6f);
+
+        for (int i = 0; i < 10; i++) {
+            player.getWorld().spawnParticle(
+                    Particle.DUST, behind, 3, 0.15, 0.15, 0.15, 0,
+                    new Particle.DustOptions(Color.fromRGB(200, 0, 0), 1.2f)
+            );
+        }
+
+        Bukkit.getScheduler().runTaskLater(SoulsSMP.getInstance(), onComplete, 8L);
+    }
+
+    private void fireNeedleVolley(Player player, LivingEntity target, int remaining, int fired, long intervalTicks) {
+        if (remaining <= 0) return;
+
+        Bukkit.getScheduler().runTaskLater(SoulsSMP.getInstance(), () -> {
+            if (target.isDead() || !target.isValid()) return;
+
+            drawNeedleLine(player.getEyeLocation(), target.getLocation().add(0, 1, 0));
+            target.getWorld().playSound(target.getLocation(), Sound.ENTITY_ARROW_HIT_PLAYER, 0.5f, 1.8f);
+
+            // Direct health change = true damage, bypasses armor entirely,
+            // and avoids re-firing EntityDamageByEntityEvent.
+            double newHealth = Math.max(0, target.getHealth() - NEEDLE_DAMAGE);
+            target.setHealth(newHealth);
+
+            fireNeedleVolley(player, target, remaining - 1, fired + 1, intervalTicks);
+        }, fired == 0 ? 0L : intervalTicks);
+    }
+
+    /**
+     * Sharp, bold, thin red line - denser particle spacing and a slightly
+     * bigger dust size than other effects for a "needle" look.
+     */
+    private void drawNeedleLine(Location from, Location to) {
+        var direction = to.clone().subtract(from).toVector().normalize();
+        double distance = from.distance(to);
+
+        for (double d = 0; d < distance; d += 0.2) {
+            Location point = from.clone().add(direction.clone().multiply(d));
+            from.getWorld().spawnParticle(
+                    Particle.DUST, point, 1, 0, 0, 0, 0,
+                    new Particle.DustOptions(Color.fromRGB(210, 0, 0), 1.3f)
+            );
+        }
+    }
+
+    private LivingEntity getTargetEasy(Player player, double range, double raySize) {
         RayTraceResult result = player.getWorld().rayTraceEntities(
                 player.getEyeLocation(),
                 player.getEyeLocation().getDirection(),
                 range,
+                raySize,
                 entity -> entity instanceof LivingEntity && !entity.equals(player)
         );
 

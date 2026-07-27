@@ -9,6 +9,7 @@ import net.ape.soulssmp.command.SoulTestTabCompleter;
 import net.ape.soulssmp.hud.HudManager;
 import net.ape.soulssmp.hud.HudTask;
 import net.ape.soulssmp.listener.BloodCombatListener;
+import net.ape.soulssmp.listener.CurseGUIListener;
 import net.ape.soulssmp.listener.HudJoinQuitListener;
 import net.ape.soulssmp.listener.PlayerDataListener;
 import net.ape.soulssmp.listener.RestrictionSprintListener;
@@ -18,10 +19,12 @@ import net.ape.soulssmp.mana.ManaManager;
 import net.ape.soulssmp.mana.ManaTask;
 import net.ape.soulssmp.player.PlayerDataManager;
 import net.ape.soulssmp.soul.SoulManager;
+import net.ape.soulssmp.soul.types.bloodsoul.BloodDebuffVisualTask;
 import net.ape.soulssmp.soul.types.bloodsoul.BloodHands;
 import net.ape.soulssmp.soul.types.bloodsoul.BloodPassiveTask;
 import net.ape.soulssmp.soul.types.bloodsoul.BloodSenseManager;
 import net.ape.soulssmp.soul.types.bloodsoul.Curse;
+import net.ape.soulssmp.soul.types.bloodsoul.CursePendingManager;
 import net.ape.soulssmp.soul.types.bloodsoul.Hemorrhage;
 import net.ape.soulssmp.soul.types.bloodsoul.HemorrhageManager;
 import net.ape.soulssmp.soul.types.bloodsoul.HoldManager;
@@ -58,6 +61,7 @@ public final class SoulsSMP extends JavaPlugin {
     private HemorrhageManager hemorrhageManager;
     private HoldManager holdManager;
     private BloodCombatListener bloodCombatListener;
+    private CursePendingManager cursePendingManager;
 
     @Override
     public void onEnable() {
@@ -78,6 +82,7 @@ public final class SoulsSMP extends JavaPlugin {
         hemorrhageManager = new HemorrhageManager();
         holdManager = new HoldManager();
         bloodCombatListener = new BloodCombatListener();
+        cursePendingManager = new CursePendingManager();
 
         abilityManager.registerAbility(new VoidStep());
         abilityManager.registerAbility(new AbyssMark());
@@ -183,6 +188,10 @@ public final class SoulsSMP extends JavaPlugin {
         return bloodCombatListener;
     }
 
+    public CursePendingManager getCursePendingManager() {
+        return cursePendingManager;
+    }
+
     private void registerListeners() {
         getServer().getPluginManager().registerEvents(new VoidCombatListener(), this);
         getServer().getPluginManager().registerEvents(new UltimateTriggerListener(), this);
@@ -190,6 +199,7 @@ public final class SoulsSMP extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerDataListener(), this);
         getServer().getPluginManager().registerEvents(bloodCombatListener, this);
         getServer().getPluginManager().registerEvents(new RestrictionSprintListener(), this);
+        getServer().getPluginManager().registerEvents(new CurseGUIListener(), this);
     }
 
     private void registerCommands() {
@@ -206,5 +216,6 @@ public final class SoulsSMP extends JavaPlugin {
         new BloodPassiveTask().runTaskTimer(this, 0L, 10L);
         new RestraintTask().runTaskTimer(this, 0L, 5L);
         new HoldTask().runTaskTimer(this, 0L, 5L);
+        new BloodDebuffVisualTask().runTaskTimer(this, 0L, 10L);
     }
 }

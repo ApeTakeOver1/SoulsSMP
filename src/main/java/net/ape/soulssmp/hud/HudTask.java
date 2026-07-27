@@ -4,6 +4,7 @@ import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.ability.Ability;
 import net.ape.soulssmp.ability.AbilityType;
 import net.ape.soulssmp.soul.SoulType;
+import net.ape.soulssmp.soul.types.bloodsoul.BloodHands;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
@@ -46,6 +47,13 @@ public class HudTask extends BukkitRunnable {
         if (ultimateBar == null) return;
 
         SoulType soul = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(player).getSoul();
+
+        if (soul == null) {
+            ultimateBar.setTitle("§7No Ultimate");
+            ultimateBar.setProgress(0);
+            return;
+        }
+
         AbilityType ultimateType = soul == SoulType.BLOOD ? AbilityType.BLOOD_HANDS
                 : soul == SoulType.VOID ? AbilityType.NULL_FIELD : null;
 
@@ -58,11 +66,19 @@ public class HudTask extends BukkitRunnable {
         Ability ultimate = SoulsSMP.getInstance().getAbilityManager().getAbility(ultimateType);
         if (ultimate == null) return;
 
-        String label = ultimateType == AbilityType.BLOOD_HANDS ? "§4§lBlood Hands" : "§f§lNull Field";
+        String label;
+        String hint = " (Sneak + F)";
+
+        if (ultimateType == AbilityType.BLOOD_HANDS) {
+            boolean punctureMode = player.getHealth() <= BloodHands.PUNCTURE_HP_THRESHOLD;
+            label = punctureMode ? "§c§lPuncture" : "§4§lBlood Hands";
+        } else {
+            label = "§f§lNull Field";
+        }
 
         if (player.getGameMode() == GameMode.CREATIVE) {
             ultimateBar.setProgress(1.0);
-            ultimateBar.setTitle(label + " §7» §aREADY §7(Sneak + F)");
+            ultimateBar.setTitle(label + " §7» §aREADY §7" + hint);
             return;
         }
 
@@ -72,7 +88,7 @@ public class HudTask extends BukkitRunnable {
 
         if (remaining <= 0) {
             ultimateBar.setProgress(1.0);
-            ultimateBar.setTitle(label + " §7» §aREADY §7(Sneak + F)");
+            ultimateBar.setTitle(label + " §7» §aREADY §7" + hint);
         } else {
             double progress = 1.0 - ((double) remaining / totalCooldown);
             ultimateBar.setProgress(Math.max(0, Math.min(1.0, progress)));
@@ -85,12 +101,12 @@ public class HudTask extends BukkitRunnable {
 
         String fullText;
         if (soul == SoulType.VOID) {
-            String voidStepText = buildCooldownBar(player, AbilityType.VOID_STEP, "Void Step");
+            String voidStepText = buildCooldownBar(player, AbilityType.VOID_STEP, "Void Step", "§d");
             String abyssMarkText = buildAbyssMarkBar(player);
             fullText = voidStepText + "   §8|   " + abyssMarkText;
         } else if (soul == SoulType.BLOOD) {
-            String curseText = buildCooldownBar(player, AbilityType.CURSE, "Curse");
-            String hemorrhageText = buildCooldownBar(player, AbilityType.HEMORRHAGE, "Hemorrhage");
+            String curseText = buildCooldownBar(player, AbilityType.CURSE, "Curse", "§4");
+            String hemorrhageText = buildHemorrhageBar(player);
             fullText = curseText + "   §8|   " + hemorrhageText;
         } else {
             fullText = "§7No Soul bound";
@@ -99,9 +115,14 @@ public class HudTask extends BukkitRunnable {
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(fullText));
     }
 
-    private String buildCooldownBar(Player player, AbilityType type, String label) {
+    /**
+     * colorCode lets each ability have its own bar/label color (e.g. Curse
+     * is dark red "§4", Void Step is light purple "§d") instead of sharing
+     * one hardcoded color across every ability.
+     */
+    private String buildCooldownBar(Player player, AbilityType type, String label, String colorCode) {
         if (player.getGameMode() == GameMode.CREATIVE) {
-            return "§5§l" + label + " §7» §aREADY";
+            return colorCode + "§l" + label + " §7» §aREADY";
         }
 
         Ability ability = SoulsSMP.getInstance().getAbilityManager().getAbility(type);
@@ -112,7 +133,7 @@ public class HudTask extends BukkitRunnable {
         int totalCooldown = ability.getCooldownSeconds();
 
         if (remaining <= 0) {
-            return "§5§l" + label + " §7» §aREADY";
+            return colorCode + "§l" + label + " §7» §aREADY";
         }
 
         int totalSegments = 10;
@@ -121,10 +142,10 @@ public class HudTask extends BukkitRunnable {
 
         StringBuilder bar = new StringBuilder();
         for (int i = 0; i < totalSegments; i++) {
-            bar.append(i < filled ? "§5▌" : "§8▌");
+            bar.append(i < filled ? colorCode + "▌" : "§8▌");
         }
 
-        return "§5§l" + label + " §7» " + bar + " §7" + remaining + "s";
+        return colorCode + "§l" + label + " §7» " + bar + " §7" + remaining + "s";
     }
 
     private String buildAbyssMarkBar(Player player) {
@@ -139,5 +160,27 @@ public class HudTask extends BukkitRunnable {
         }
 
         return "§5§lAbyss Mark §7» §dMarked §7(" + remaining + "s)";
+    }
+
+    private String buildHemorrhageBar(Player player) {
+        if (player.getGameMode() == GameMode.CREATIVE) {
+            return "§4§lHemorrhage §7» §aREADY";
+        }
+
+        int[] status = SoulsSMP.getInstance().getHemorrhageManager().getCurrentMarkStatus(player.getUniqueId());
+
+        if (status == null) {
+            return buildCooldownBar(player, AbilityType.HEMORRHAGE, "Hemorrhage", "§4");
+        }
+
+        int stacks = status[0];
+        int secondsRemaining = status[1];
+
+        StringBuilder pips = new StringBuilder();
+        for (int i = 1; i <= 5; i++) {
+            pips.append(i <= stacks ? "§c●" : "§8●");
+        }
+
+        return "§4§lHemorrhage §7» " + pips + " §7" + stacks + "/5 §7(" + secondsRemaining + "s)";
     }
 }
