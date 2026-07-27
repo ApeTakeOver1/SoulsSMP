@@ -1,65 +1,44 @@
 package net.ape.soulssmp.soul.types.voidsoul;
 
-import org.bukkit.Location;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Tracks which targets are currently "Null Field affected" per caster.
+ * Being affected lasts the same 45 seconds as the Weakness/Blindness debuff,
+ * and upgrades that caster's Abyss Mark combo bonuses against that target.
+ */
 public class NullFieldManager {
 
-    private static class FieldData {
-        final Location center;
-        final double radius;
-        final long expiresAt;
+    private static class AffectedData {
+        long expiresAt;
 
-        FieldData(Location center, double radius, long expiresAt) {
-            this.center = center;
-            this.radius = radius;
+        AffectedData(long expiresAt) {
             this.expiresAt = expiresAt;
         }
     }
 
-    private final Map<UUID, FieldData> activeFields = new HashMap<>();
-    private final Map<UUID, Integer> fieldHitCounts = new HashMap<>();
+    // casterId -> (targetId -> data)
+    private final Map<UUID, Map<UUID, AffectedData>> affected = new HashMap<>();
 
-    public void createField(Player caster, Location center, double radius, int durationSeconds) {
+    public void markAffected(UUID casterId, UUID targetId, int durationSeconds) {
         long expiresAt = System.currentTimeMillis() + (durationSeconds * 1000L);
-        activeFields.put(caster.getUniqueId(), new FieldData(center, radius, expiresAt));
+        affected.computeIfAbsent(casterId, k -> new HashMap<>()).put(targetId, new AffectedData(expiresAt));
     }
 
-    public UUID getFieldOwnerAt(Location location) {
-        long now = System.currentTimeMillis();
+    public boolean isAffected(UUID casterId, UUID targetId) {
+        Map<UUID, AffectedData> targets = affected.get(casterId);
+        if (targets == null) return false;
 
-        for (Map.Entry<UUID, FieldData> entry : activeFields.entrySet()) {
-            FieldData data = entry.getValue();
+        AffectedData data = targets.get(targetId);
+        if (data == null) return false;
 
-            if (now > data.expiresAt) continue;
-            if (!data.center.getWorld().equals(location.getWorld())) continue;
-
-            if (data.center.distance(location) <= data.radius) {
-                return entry.getKey();
-            }
+        if (System.currentTimeMillis() > data.expiresAt) {
+            targets.remove(targetId);
+            return false;
         }
 
-        return null;
-    }
-
-    public void removeField(Player caster) {
-        activeFields.remove(caster.getUniqueId());
-    }
-
-    /**
-     * Registers a hit landed on this target while inside a Null Field.
-     * Returns the new count.
-     */
-    public int registerFieldHit(LivingEntity target) {
-        return fieldHitCounts.merge(target.getUniqueId(), 1, Integer::sum);
-    }
-
-    public void clearFieldHits(LivingEntity target) {
-        fieldHitCounts.remove(target.getUniqueId());
+        return true;
     }
 }

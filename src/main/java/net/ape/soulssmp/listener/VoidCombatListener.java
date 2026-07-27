@@ -1,6 +1,7 @@
 package net.ape.soulssmp.listener;
 
 import net.ape.soulssmp.SoulsSMP;
+import net.ape.soulssmp.ability.AbilityType;
 import net.ape.soulssmp.soul.types.voidsoul.NullFieldManager;
 import net.ape.soulssmp.soul.types.voidsoul.VoidMarkManager;
 import org.bukkit.Color;
@@ -16,9 +17,16 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
-import java.util.UUID;
-
 public class VoidCombatListener implements Listener {
+
+    private static final double NORMAL_BONUS_MULTIPLIER = 1.25;
+    private static final double AFFECTED_BONUS_MULTIPLIER = 1.5;
+
+    private static final int NORMAL_MANA_GAIN = 10;
+    private static final int AFFECTED_MANA_GAIN = 20;
+
+    private static final int NORMAL_COOLDOWN_REDUCTION_SECONDS = 5;
+    private static final int AFFECTED_COOLDOWN_REDUCTION_SECONDS = 10;
 
     @EventHandler
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
@@ -26,10 +34,7 @@ public class VoidCombatListener implements Listener {
         if (!(event.getEntity() instanceof LivingEntity target)) return;
 
         VoidMarkManager markManager = SoulsSMP.getInstance().getVoidMarkManager();
-        NullFieldManager fieldManager = SoulsSMP.getInstance().getNullFieldManager();
-
         handleAbyssMarkCombo(event, attacker, target, markManager);
-        handleNullFieldStun(attacker, target, fieldManager, markManager);
     }
 
     private void handleAbyssMarkCombo(EntityDamageByEntityEvent event, Player attacker,
@@ -40,40 +45,39 @@ public class VoidCombatListener implements Listener {
         int hitCount = markManager.registerHit(target, attacker.getUniqueId());
         if (hitCount <= 0) return;
 
+        NullFieldManager fieldManager = SoulsSMP.getInstance().getNullFieldManager();
+        boolean isAffected = fieldManager.isAffected(attacker.getUniqueId(), target.getUniqueId());
+
         if (hitCount % 3 == 0) {
-            event.setDamage(event.getDamage() * 1.25);
+            double multiplier = isAffected ? AFFECTED_BONUS_MULTIPLIER : NORMAL_BONUS_MULTIPLIER;
+            event.setDamage(event.getDamage() * multiplier);
             target.getWorld().spawnParticle(Particle.SWEEP_ATTACK, target.getLocation().add(0, 1, 0), 1);
             target.getWorld().playSound(target.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.3f);
         }
 
         if (hitCount % 5 == 0) {
-            int manaGain = 10;
+            int manaGain = isAffected ? AFFECTED_MANA_GAIN : NORMAL_MANA_GAIN;
+            int cooldownReduction = isAffected ? AFFECTED_COOLDOWN_REDUCTION_SECONDS : NORMAL_COOLDOWN_REDUCTION_SECONDS;
+
             SoulsSMP.getInstance().getManaManager().addMana(attacker, manaGain);
-            attacker.sendMessage("§8§lVoid §7» §5Combo surge! §f+" + manaGain + " mana.");
+            SoulsSMP.getInstance().getAbilityManager()
+                    .reduceCooldown(attacker, AbilityType.NULL_FIELD, cooldownReduction);
+
+            attacker.sendMessage("§8§lVoid §7» §5Combo surge! §f+" + manaGain + " mana, §f-"
+                    + cooldownReduction + "s §7Null Field cooldown.");
             attacker.getWorld().playSound(attacker.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_RESONATE, 0.7f, 1.2f);
-        }
-    }
 
-    private void handleNullFieldStun(Player attacker, LivingEntity target,
-                                     NullFieldManager fieldManager, VoidMarkManager markManager) {
-
-        UUID fieldOwner = fieldManager.getFieldOwnerAt(target.getLocation());
-        if (fieldOwner == null || !fieldOwner.equals(attacker.getUniqueId())) return;
-
-        int fieldHits = fieldManager.registerFieldHit(target);
-
-        if (fieldHits >= 5) {
-            fieldManager.clearFieldHits(target);
-            markManager.applyMark(target, attacker.getUniqueId(), 10);
-            applyStun(attacker, target);
-            attacker.sendMessage("§8§lVoid §7» §5Target stunned by the void.");
+            if (isAffected) {
+                applyStun(attacker, target);
+            }
         }
     }
 
     /**
      * Vanilla has no true "stun" status, so this approximates one with a short,
      * heavy Slowness + Weakness combo, plus a particle "chain" linking attacker
-     * to target and chain sound effects for the visual/audio feel of being bound.
+     * to target. Only triggers on the 5th combo hit against a target currently
+     * flagged as Null Field-affected by this attacker.
      */
     private void applyStun(Player attacker, LivingEntity target) {
         target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 8));

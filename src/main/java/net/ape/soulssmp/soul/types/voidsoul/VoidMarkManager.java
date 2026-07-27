@@ -20,11 +20,13 @@ public class VoidMarkManager {
         }
     }
 
-    private final Map<UUID, MarkData> marks = new HashMap<>();
+    private final Map<UUID, MarkData> marks = new HashMap<>(); // targetId -> data
+    private final Map<UUID, UUID> markedTargetByCaster = new HashMap<>(); // casterId -> targetId
 
     public void applyMark(LivingEntity target, UUID markedBy, int durationSeconds) {
         long expiresAt = System.currentTimeMillis() + (durationSeconds * 1000L);
         marks.put(target.getUniqueId(), new MarkData(markedBy, expiresAt));
+        markedTargetByCaster.put(markedBy, target.getUniqueId());
     }
 
     public boolean isMarkedBy(LivingEntity target, UUID attacker) {
@@ -53,6 +55,34 @@ public class VoidMarkManager {
     }
 
     public void clearMark(LivingEntity target) {
-        marks.remove(target.getUniqueId());
+        MarkData data = marks.remove(target.getUniqueId());
+        if (data != null) {
+            markedTargetByCaster.remove(data.markedBy);
+        }
+    }
+
+    /**
+     * Returns how many seconds are left on the mark this caster currently
+     * has active on their target, or 0 if they have no active mark.
+     * Used by the HUD to show mark duration instead of a cooldown.
+     */
+    public int getRemainingMarkSeconds(UUID casterId) {
+        UUID targetId = markedTargetByCaster.get(casterId);
+        if (targetId == null) return 0;
+
+        MarkData data = marks.get(targetId);
+        if (data == null) {
+            markedTargetByCaster.remove(casterId);
+            return 0;
+        }
+
+        long remainingMillis = data.expiresAt - System.currentTimeMillis();
+        if (remainingMillis <= 0) {
+            marks.remove(targetId);
+            markedTargetByCaster.remove(casterId);
+            return 0;
+        }
+
+        return (int) (remainingMillis / 1000) + 1;
     }
 }

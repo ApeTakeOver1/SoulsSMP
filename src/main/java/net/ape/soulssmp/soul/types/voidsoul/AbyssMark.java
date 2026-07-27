@@ -3,6 +3,8 @@ package net.ape.soulssmp.soul.types.voidsoul;
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.ability.Ability;
 import net.ape.soulssmp.ability.AbilityType;
+import net.ape.soulssmp.soul.SoulType;
+import org.bukkit.GameMode;
 import org.bukkit.Particle;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -10,11 +12,11 @@ import org.bukkit.util.RayTraceResult;
 
 public class AbyssMark extends Ability {
 
-    private static final double RANGE = 8.0;
+    private static final double RANGE = 30.0;
     private static final int MARK_DURATION_SECONDS = 10;
 
     public AbyssMark() {
-        super(AbilityType.ABYSS_MARK, "Abyss Mark", 15, 12);
+        super(AbilityType.ABYSS_MARK, "Abyss Mark", 0, 0, SoulType.VOID);
     }
 
     @Override
@@ -26,16 +28,20 @@ public class AbyssMark extends Ability {
             return false;
         }
 
-        if (!SoulsSMP.getInstance().getManaManager().spendMana(player, getManaCost())) {
-            player.sendMessage("§8§lVoid §7» §cNot enough mana.");
-            return false;
+        if (player.getGameMode() != GameMode.CREATIVE) {
+            int currentMana = SoulsSMP.getInstance().getManaManager().getMana(player);
+            if (currentMana <= 0) {
+                player.sendMessage("§8§lVoid §7» §cYou have no mana to mark with.");
+                return false;
+            }
+            SoulsSMP.getInstance().getManaManager().setMana(player, 0);
         }
 
         SoulsSMP.getInstance().getVoidMarkManager()
                 .applyMark(target, player.getUniqueId(), MARK_DURATION_SECONDS);
 
         player.getWorld().spawnParticle(Particle.SOUL, target.getLocation().add(0, 1, 0), 20, 0.3, 0.5, 0.3, 0.01);
-        player.sendMessage("§8§lVoid §7» §5Target marked.");
+        player.sendMessage("§8§lVoid §7» §5Target marked. §7(All mana spent)");
         return true;
     }
 

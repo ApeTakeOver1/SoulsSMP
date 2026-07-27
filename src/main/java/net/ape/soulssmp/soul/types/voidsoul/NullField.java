@@ -3,19 +3,23 @@ package net.ape.soulssmp.soul.types.voidsoul;
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.ability.Ability;
 import net.ape.soulssmp.ability.AbilityType;
+import net.ape.soulssmp.soul.SoulType;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 public class NullField extends Ability {
 
     private static final double RADIUS = 6.0;
-    private static final int DURATION_SECONDS = 8;
+    private static final int WEAKEN_DURATION_SECONDS = 45;
+    private static final int WEAKEN_DURATION_TICKS = WEAKEN_DURATION_SECONDS * 20;
 
     public NullField() {
-        super(AbilityType.NULL_FIELD, "Null Field", 50, 60);
+        super(AbilityType.NULL_FIELD, "Null Field", 50, 90, SoulType.VOID);
     }
 
     @Override
@@ -27,24 +31,37 @@ public class NullField extends Ability {
 
         Location center = player.getLocation();
 
-        SoulsSMP.getInstance().getNullFieldManager()
-                .createField(player, center, RADIUS, DURATION_SECONDS);
-
-        playActivationVisual(player, center);
-        player.sendMessage("§8§lVoid §7» §5Null Field opened. Abilities weaken within it.");
+        catchNearbyPlayers(player, center);
+        playInstantFlash(player, center);
+        player.sendMessage("§8§lVoid §7» §5Null Field flashed. Caught enemies are weakened for " + WEAKEN_DURATION_SECONDS + "s.");
         return true;
     }
 
-    private void playActivationVisual(Player player, Location center) {
+    private void catchNearbyPlayers(Player caster, Location center) {
+        for (var entity : center.getWorld().getNearbyEntities(center, RADIUS, RADIUS, RADIUS)) {
+            if (!(entity instanceof Player target)) continue;
+            if (target.getUniqueId().equals(caster.getUniqueId())) continue;
+
+            target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, WEAKEN_DURATION_TICKS, 0, false, true, true));
+            target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, WEAKEN_DURATION_TICKS, 0, false, true, true));
+
+            SoulsSMP.getInstance().getNullFieldManager()
+                    .markAffected(caster.getUniqueId(), target.getUniqueId(), WEAKEN_DURATION_SECONDS);
+
+            target.sendMessage("§8§lVoid §7» §5You've been caught in the Null Field.");
+        }
+    }
+
+    private void playInstantFlash(Player player, Location center) {
         player.getWorld().playSound(center, Sound.ENTITY_WARDEN_SONIC_BOOM, 0.6f, 1.8f);
         player.getWorld().playSound(center, Sound.BLOCK_SCULK_SHRIEKER_SHRIEK, 0.5f, 0.6f);
+        player.getWorld().playSound(center, Sound.ENTITY_ILLUSIONER_MIRROR_MOVE, 0.5f, 1.5f);
 
-        // Full hollow sphere made of white crack particles - the "domain" shape
         int latitudeSteps = 18;
         int longitudeSteps = 24;
 
         for (int lat = 0; lat <= latitudeSteps; lat++) {
-            double theta = Math.PI * lat / latitudeSteps; // 0 to PI
+            double theta = Math.PI * lat / latitudeSteps;
             double y = RADIUS * Math.cos(theta);
             double ringRadius = RADIUS * Math.sin(theta);
 
@@ -56,18 +73,12 @@ public class NullField extends Ability {
                 Location point = center.clone().add(x, y, z);
                 player.getWorld().spawnParticle(
                         Particle.DUST, point, 1, 0, 0, 0, 0,
-                        new Particle.DustOptions(Color.fromRGB(230, 230, 255), 1.2f)
+                        new Particle.DustOptions(org.bukkit.Color.fromRGB(255, 255, 255), 1.5f)
                 );
             }
         }
 
-        // Ground crack ring for extra emphasis at the base
-        for (int i = 0; i < 360; i += 6) {
-            double rad = Math.toRadians(i);
-            double x = center.getX() + RADIUS * Math.cos(rad);
-            double z = center.getZ() + RADIUS * Math.sin(rad);
-            Location edge = new Location(center.getWorld(), x, center.getY(), z);
-            player.getWorld().spawnParticle(Particle.END_ROD, edge, 2, 0, 0.2, 0, 0.01);
-        }
+        player.getWorld().spawnParticle(Particle.FLASH, center, 1);
+        player.getWorld().spawnParticle(Particle.END_ROD, center, 40, RADIUS / 2, 1, RADIUS / 2, 0.05);
     }
 }

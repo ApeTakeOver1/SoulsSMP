@@ -1,7 +1,9 @@
 package net.ape.soulssmp.mana;
 
+import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.player.PlayerData;
 import net.ape.soulssmp.player.PlayerDataManager;
+import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 
 public class ManaManager {
@@ -12,33 +14,24 @@ public class ManaManager {
         this.playerDataManager = playerDataManager;
     }
 
-    /**
-     * Gets the player's current mana.
-     */
     public int getMana(Player player) {
+        if (player.getGameMode() == GameMode.CREATIVE) {
+            return getMaxMana(player);
+        }
         return playerDataManager.getPlayerData(player).getMana();
     }
 
-    /**
-     * Gets the player's max mana.
-     */
     public int getMaxMana(Player player) {
-        return playerDataManager.getPlayerData(player).getMaxMana();
+        int max = playerDataManager.getPlayerData(player).getMaxMana();
+        return max <= 0 ? 100 : max;
     }
 
-    /**
-     * Sets the player's current mana, clamped between 0 and max mana.
-     */
     public void setMana(Player player, int amount) {
         PlayerData data = playerDataManager.getPlayerData(player);
         int clamped = Math.max(0, Math.min(amount, data.getMaxMana()));
         data.setMana(clamped);
     }
 
-    /**
-     * Sets the player's max mana. Does NOT change current mana,
-     * unless current mana now exceeds the new max (then it gets clamped down).
-     */
     public void setMaxMana(Player player, int amount) {
         PlayerData data = playerDataManager.getPlayerData(player);
         data.setMaxMana(amount);
@@ -48,39 +41,41 @@ public class ManaManager {
         }
     }
 
-    /**
-     * Adds mana, clamped so it can't go above max mana.
-     */
     public void addMana(Player player, int amount) {
         setMana(player, getMana(player) + amount);
     }
 
-    /**
-     * Checks if the player has enough mana to use something.
-     */
     public boolean hasEnoughMana(Player player, int cost) {
-        return getMana(player) >= cost;
+        if (player.getGameMode() == GameMode.CREATIVE) return true;
+        return getMana(player) >= getActualCost(player, cost);
     }
 
     /**
-     * Attempts to spend mana. Returns true if successful (had enough),
-     * false if the player didn't have enough mana (nothing is deducted).
+     * Attempts to spend mana. Applies Silence's cost multiplier if active.
+     * In Creative mode, always succeeds and nothing is deducted.
      */
     public boolean spendMana(Player player, int cost) {
-        if (!hasEnoughMana(player, cost)) {
+        if (player.getGameMode() == GameMode.CREATIVE) return true;
+
+        int actualCost = getActualCost(player, cost);
+
+        if (getMana(player) < actualCost) {
             return false;
         }
 
-        setMana(player, getMana(player) - cost);
+        setMana(player, getMana(player) - actualCost);
         return true;
     }
 
-    /**
-     * Fully refills mana to max.
-     */
+    private int getActualCost(Player player, int baseCost) {
+        if (SoulsSMP.getInstance().getSilenceManager().isSilenced(player)) {
+            return (int) Math.ceil(baseCost * SoulsSMP.getInstance().getSilenceManager().getCostMultiplier());
+        }
+        return baseCost;
+    }
+
     public void refillMana(Player player) {
         PlayerData data = playerDataManager.getPlayerData(player);
-        data.setMana(data.getMana());
         setMana(player, data.getMaxMana());
     }
 }

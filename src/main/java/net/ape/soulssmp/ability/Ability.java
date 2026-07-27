@@ -1,5 +1,6 @@
 package net.ape.soulssmp.ability;
 
+import net.ape.soulssmp.soul.SoulType;
 import org.bukkit.entity.Player;
 
 public abstract class Ability {
@@ -8,12 +9,14 @@ public abstract class Ability {
     private final String displayName;
     private final int manaCost;
     private final int cooldownSeconds;
+    private final SoulType requiredSoul;
 
-    public Ability(AbilityType type, String displayName, int manaCost, int cooldownSeconds) {
+    public Ability(AbilityType type, String displayName, int manaCost, int cooldownSeconds, SoulType requiredSoul) {
         this.type = type;
         this.displayName = displayName;
         this.manaCost = manaCost;
         this.cooldownSeconds = cooldownSeconds;
+        this.requiredSoul = requiredSoul;
     }
 
     public AbilityType getType() {
@@ -32,10 +35,9 @@ public abstract class Ability {
         return cooldownSeconds;
     }
 
-    /**
-     * Runs the ability.
-     * @return true if this counted as a full use and should start the cooldown,
-     *         false if nothing actually happened (failed cast, arming phase, etc.)
-     */
+    public SoulType getRequiredSoul() {
+        return requiredSoul;
+    }
+
     public abstract boolean execute(Player player);
 }

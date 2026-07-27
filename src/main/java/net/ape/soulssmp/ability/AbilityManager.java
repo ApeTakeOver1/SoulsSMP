@@ -1,5 +1,8 @@
 package net.ape.soulssmp.ability;
 
+import net.ape.soulssmp.SoulsSMP;
+import net.ape.soulssmp.player.PlayerData;
+import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -19,34 +22,53 @@ public class AbilityManager {
         return registeredAbilities.get(type);
     }
 
-    /**
-     * Attempts to use an ability. Handles cooldown checking/setting.
-     * Mana checking happens inside the ability itself.
-     */
-    public boolean useAbility(Player player, AbilityType type) {
+    public void useAbility(Player player, AbilityType type) {
         Ability ability = registeredAbilities.get(type);
 
         if (ability == null) {
-            player.sendMessage("§8§lVoid §7» §cThat ability isn't available yet.");
-            return false;
+            player.sendMessage("§8§lSoul §7» §cThat ability isn't available yet.");
+            return;
         }
 
-        long remaining = getRemainingCooldownSeconds(player, type);
-        if (remaining > 0) {
-            player.sendMessage("§8§lVoid §7» §c" + ability.getDisplayName() + " is on cooldown (" + remaining + "s).");
-            return false;
+        PlayerData data = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(player);
+        if (data.getSoul() != ability.getRequiredSoul()) {
+            player.sendMessage("§8§lSoul §7» §c" + ability.getDisplayName() + " doesn't belong to your Soul.");
+            return;
+        }
+
+        boolean isCreative = player.getGameMode() == GameMode.CREATIVE;
+        boolean hasCooldown = ability.getCooldownSeconds() > 0;
+
+        if (!isCreative && hasCooldown) {
+            long remaining = getRemainingCooldownSeconds(player, type);
+            if (remaining > 0) {
+                player.sendMessage("§8§lSoul §7» §c" + ability.getDisplayName() + " is on cooldown (" + remaining + "s).");
+                return;
+            }
+        }
+
+        var silenceManager = SoulsSMP.getInstance().getSilenceManager();
+        if (!isCreative && silenceManager.isSilenced(player)) {
+            player.sendMessage("§8§lSoul §7» §5Silenced - activation delayed...");
+            org.bukkit.Bukkit.getScheduler().runTaskLater(SoulsSMP.getInstance(), () -> {
+                boolean fullUse = ability.execute(player);
+                if (fullUse && !isCreative && hasCooldown) {
+                    setCooldown(player, type, ability.getCooldownSeconds());
+                }
+            }, silenceManager.getActivationDelayTicks());
+            return;
         }
 
         boolean fullUse = ability.execute(player);
 
-        if (fullUse) {
+        if (fullUse && !isCreative && hasCooldown) {
             setCooldown(player, type, ability.getCooldownSeconds());
         }
-
-        return fullUse;
     }
 
     public long getRemainingCooldownSeconds(Player player, AbilityType type) {
+        if (player.getGameMode() == GameMode.CREATIVE) return 0;
+
         Map<AbilityType, Long> playerCooldowns = cooldowns.get(player.getUniqueId());
         if (playerCooldowns == null) return 0;
 
@@ -60,5 +82,22 @@ public class AbilityManager {
     private void setCooldown(Player player, AbilityType type, int cooldownSeconds) {
         cooldowns.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>())
                 .put(type, System.currentTimeMillis() + (cooldownSeconds * 1000L));
+    }
+
+    public void reduceCooldown(Player player, AbilityType type, int seconds) {
+        Map<AbilityType, Long> playerCooldowns = cooldowns.get(player.getUniqueId());
+        if (playerCooldowns == null) return;
+
+        Long readyAt = playerCooldowns.get(type);
+        if (readyAt == null) return;
+
+        long newReadyAt = readyAt - (seconds * 1000L);
+        long now = System.currentTimeMillis();
+
+        if (newReadyAt <= now) {
+            playerCooldowns.remove(type);
+        } else {
+            playerCooldowns.put(type, newReadyAt);
+        }
     }
 }

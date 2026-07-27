@@ -7,11 +7,6 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-/**
- * TEMPORARY testing command. Not part of real progression —
- * lets you force a soul + mana onto yourself so you can test abilities
- * before the real soul-assignment system (rituals, etc.) exists.
- */
 public class SoulTestCommand implements CommandExecutor {
 
     @Override
@@ -22,7 +17,7 @@ public class SoulTestCommand implements CommandExecutor {
         }
 
         if (args.length == 0) {
-            player.sendMessage("§8§lSoulTest §7» §7Usage: /soultest void | /soultest mana <amount>");
+            player.sendMessage("§8§lSoulTest §7» §7Usage: /soultest <void|blood> | /soultest mana <amount>");
             return true;
         }
 
@@ -31,6 +26,14 @@ public class SoulTestCommand implements CommandExecutor {
             SoulsSMP.getInstance().getManaManager().setMaxMana(player, 100);
             SoulsSMP.getInstance().getManaManager().setMana(player, 100);
             player.sendMessage("§8§lSoulTest §7» §5You are now bound to the Void Soul. Mana set to 100/100.");
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("blood")) {
+            SoulsSMP.getInstance().getSoulManager().setSoul(player, SoulType.BLOOD);
+            SoulsSMP.getInstance().getManaManager().setMaxMana(player, 100);
+            SoulsSMP.getInstance().getManaManager().setMana(player, 100);
+            player.sendMessage("§4§lSoulTest §7» §cYou are now bound to the Blood Soul. Mana set to 100/100.");
             return true;
         }
 

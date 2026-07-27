@@ -3,18 +3,15 @@ package net.ape.soulssmp.hud;
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.ability.Ability;
 import net.ape.soulssmp.ability.AbilityType;
-import net.ape.soulssmp.player.PlayerData;
+import net.ape.soulssmp.soul.SoulType;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
-/**
- * Repeating task that keeps every player's HUD (mana bar, ultimate bar,
- * action bar text for Void Step / Abyss Mark) updated in real time.
- */
 public class HudTask extends BukkitRunnable {
 
     @Override
@@ -30,9 +27,14 @@ public class HudTask extends BukkitRunnable {
         BossBar manaBar = SoulsSMP.getInstance().getHudManager().getManaBar(player);
         if (manaBar == null) return;
 
-        PlayerData data = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(player);
-        int mana = data.getMana();
-        int maxMana = data.getMaxMana();
+        if (player.getGameMode() == GameMode.CREATIVE) {
+            manaBar.setProgress(1.0);
+            manaBar.setTitle("§d§lMana §7» §f∞");
+            return;
+        }
+
+        int mana = SoulsSMP.getInstance().getManaManager().getMana(player);
+        int maxMana = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(player).getMaxMana();
 
         double progress = maxMana <= 0 ? 0 : Math.max(0, Math.min(1.0, (double) mana / maxMana));
         manaBar.setProgress(progress);
@@ -43,33 +45,65 @@ public class HudTask extends BukkitRunnable {
         BossBar ultimateBar = SoulsSMP.getInstance().getHudManager().getUltimateBar(player);
         if (ultimateBar == null) return;
 
-        Ability nullField = SoulsSMP.getInstance().getAbilityManager().getAbility(AbilityType.NULL_FIELD);
-        if (nullField == null) return;
+        SoulType soul = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(player).getSoul();
+        AbilityType ultimateType = soul == SoulType.BLOOD ? AbilityType.BLOOD_HANDS
+                : soul == SoulType.VOID ? AbilityType.NULL_FIELD : null;
+
+        if (ultimateType == null) {
+            ultimateBar.setTitle("§7No Ultimate");
+            ultimateBar.setProgress(0);
+            return;
+        }
+
+        Ability ultimate = SoulsSMP.getInstance().getAbilityManager().getAbility(ultimateType);
+        if (ultimate == null) return;
+
+        String label = ultimateType == AbilityType.BLOOD_HANDS ? "§4§lBlood Hands" : "§f§lNull Field";
+
+        if (player.getGameMode() == GameMode.CREATIVE) {
+            ultimateBar.setProgress(1.0);
+            ultimateBar.setTitle(label + " §7» §aREADY §7(Sneak + F)");
+            return;
+        }
 
         long remaining = SoulsSMP.getInstance().getAbilityManager()
-                .getRemainingCooldownSeconds(player, AbilityType.NULL_FIELD);
-        int totalCooldown = nullField.getCooldownSeconds();
+                .getRemainingCooldownSeconds(player, ultimateType);
+        int totalCooldown = ultimate.getCooldownSeconds();
 
         if (remaining <= 0) {
             ultimateBar.setProgress(1.0);
-            ultimateBar.setTitle("§f§lNull Field §7» §aREADY §7(Sneak + F)");
+            ultimateBar.setTitle(label + " §7» §aREADY §7(Sneak + F)");
         } else {
             double progress = 1.0 - ((double) remaining / totalCooldown);
             ultimateBar.setProgress(Math.max(0, Math.min(1.0, progress)));
-            ultimateBar.setTitle("§f§lNull Field §7» §c" + remaining + "s");
+            ultimateBar.setTitle(label + " §7» §c" + remaining + "s");
         }
     }
 
     private void updateActionBar(Player player) {
-        String voidStepText = buildAbilityBar(player, AbilityType.VOID_STEP, "Void Step");
-        String abyssMarkText = buildAbilityBar(player, AbilityType.ABYSS_MARK, "Abyss Mark");
+        SoulType soul = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(player).getSoul();
 
-        String fullText = voidStepText + "   §8|   " + abyssMarkText;
+        String fullText;
+        if (soul == SoulType.VOID) {
+            String voidStepText = buildCooldownBar(player, AbilityType.VOID_STEP, "Void Step");
+            String abyssMarkText = buildAbyssMarkBar(player);
+            fullText = voidStepText + "   §8|   " + abyssMarkText;
+        } else if (soul == SoulType.BLOOD) {
+            String curseText = buildCooldownBar(player, AbilityType.CURSE, "Curse");
+            String hemorrhageText = buildCooldownBar(player, AbilityType.HEMORRHAGE, "Hemorrhage");
+            fullText = curseText + "   §8|   " + hemorrhageText;
+        } else {
+            fullText = "§7No Soul bound";
+        }
 
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(fullText));
     }
 
-    private String buildAbilityBar(Player player, AbilityType type, String label) {
+    private String buildCooldownBar(Player player, AbilityType type, String label) {
+        if (player.getGameMode() == GameMode.CREATIVE) {
+            return "§5§l" + label + " §7» §aREADY";
+        }
+
         Ability ability = SoulsSMP.getInstance().getAbilityManager().getAbility(type);
         if (ability == null) return "§7" + label + ": §8N/A";
 
@@ -91,5 +125,19 @@ public class HudTask extends BukkitRunnable {
         }
 
         return "§5§l" + label + " §7» " + bar + " §7" + remaining + "s";
+    }
+
+    private String buildAbyssMarkBar(Player player) {
+        if (player.getGameMode() == GameMode.CREATIVE) {
+            return "§5§lAbyss Mark §7» §aREADY";
+        }
+
+        int remaining = SoulsSMP.getInstance().getVoidMarkManager().getRemainingMarkSeconds(player.getUniqueId());
+
+        if (remaining <= 0) {
+            return "§5§lAbyss Mark §7» §aREADY";
+        }
+
+        return "§5§lAbyss Mark §7» §dMarked §7(" + remaining + "s)";
     }
 }

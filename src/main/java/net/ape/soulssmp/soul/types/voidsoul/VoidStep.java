@@ -3,29 +3,35 @@ package net.ape.soulssmp.soul.types.voidsoul;
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.ability.Ability;
 import net.ape.soulssmp.ability.AbilityType;
+import net.ape.soulssmp.soul.SoulType;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class VoidStep extends Ability {
 
     private static final double DISTANCE = 6.0;
     private static final long ARM_WINDOW_MILLIS = 4000L;
-    private static final long ARM_WINDOW_TICKS = 80L; // 4000ms in ticks
+    private static final long ARM_WINDOW_TICKS = 80L;
+    private static final double HIT_RADIUS = 1.5;
+    private static final double DAMAGE = 6.0;
 
     private final Map<UUID, Long> armedUntil = new HashMap<>();
     private final Map<UUID, Location> armedDestination = new HashMap<>();
 
     public VoidStep() {
-        super(AbilityType.VOID_STEP, "Void Step", 20, 10);
+        super(AbilityType.VOID_STEP, "Void Step", 20, 10, SoulType.VOID);
     }
 
     @Override
@@ -56,7 +62,6 @@ public class VoidStep extends Ability {
         playArmVisual(player, destination);
         player.sendMessage("§8§lVoid §7» §5Void Step armed. Use it again to strike.");
 
-        // Safety cleanup: if the window expires without a second use, remove the clone
         Bukkit.getScheduler().runTaskLater(SoulsSMP.getInstance(), () -> {
             Long stillArmed = armedUntil.get(uuid);
             if (stillArmed != null && stillArmed == (now + ARM_WINDOW_MILLIS)) {
@@ -80,13 +85,25 @@ public class VoidStep extends Ability {
         Vector direction = destination.clone().subtract(start).toVector().normalize();
         double distance = start.distance(destination);
 
+        Set<LivingEntity> alreadyHit = new HashSet<>();
+
         for (double d = 0; d < distance; d += 0.4) {
             Location point = start.clone().add(direction.clone().multiply(d));
+
             player.getWorld().spawnParticle(
                     Particle.DUST, point, 4, 0.05, 0.05, 0.05, 0,
                     new Particle.DustOptions(Color.fromRGB(10, 0, 20), 1.4f)
             );
             player.getWorld().spawnParticle(Particle.SMOKE, point, 2, 0.05, 0.05, 0.05, 0);
+
+            for (var entity : player.getWorld().getNearbyEntities(point, HIT_RADIUS, HIT_RADIUS, HIT_RADIUS)) {
+                if (!(entity instanceof LivingEntity living)) continue;
+                if (living.getUniqueId().equals(player.getUniqueId())) continue;
+                if (!alreadyHit.add(living)) continue;
+
+                living.damage(DAMAGE, player);
+                living.getWorld().spawnParticle(Particle.SWEEP_ATTACK, living.getLocation().add(0, 1, 0), 1);
+            }
         }
 
         SoulsSMP.getInstance().getShadowCloneManager().removeClone(player);
