@@ -5,6 +5,7 @@ import net.ape.soulssmp.ability.Ability;
 import net.ape.soulssmp.ability.AbilityType;
 import net.ape.soulssmp.soul.SoulType;
 import org.bukkit.GameMode;
+import org.bukkit.ChatColor;
 import org.bukkit.Particle;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -24,14 +25,14 @@ public class AbyssMark extends Ability {
         LivingEntity target = getTarget(player);
 
         if (target == null) {
-            player.sendMessage("§8§lVoid §7» §cNo target in range.");
+            player.sendTitle("Abyss Mark", ChatColor.RED + "No target in range.", 0, 40, 10);
             return false;
         }
 
         if (player.getGameMode() != GameMode.CREATIVE) {
             int currentMana = SoulsSMP.getInstance().getManaManager().getMana(player);
             if (currentMana <= 0) {
-                player.sendMessage("§8§lVoid §7» §cYou have no mana to mark with.");
+                player.sendTitle("Abyss Mark", ChatColor.RED + "You have no mana to mark with.", 0, 40, 10);
                 return false;
             }
             SoulsSMP.getInstance().getManaManager().setMana(player, 0);
@@ -41,7 +42,8 @@ public class AbyssMark extends Ability {
                 .applyMark(target, player.getUniqueId(), MARK_DURATION_SECONDS);
 
         player.getWorld().spawnParticle(Particle.SOUL, target.getLocation().add(0, 1, 0), 20, 0.3, 0.5, 0.3, 0.01);
-        player.sendMessage("§8§lVoid §7» §5Target marked. §7(All mana spent)");
+        player.sendTitle("Abyss Mark", ChatColor.DARK_PURPLE + "Target marked", 0, 40, 10);
+        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT, 0.8f, 1.0f);
         return true;
     }
 

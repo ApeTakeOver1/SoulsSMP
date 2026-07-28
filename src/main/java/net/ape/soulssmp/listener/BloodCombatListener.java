@@ -5,6 +5,7 @@ import net.ape.soulssmp.player.PlayerData;
 import net.ape.soulssmp.soul.SoulType;
 import net.ape.soulssmp.soul.types.bloodsoul.BloodPassiveTask;
 import net.ape.soulssmp.soul.types.bloodsoul.HemorrhageManager;
+import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -24,13 +25,14 @@ public class BloodCombatListener implements Listener {
     private static final double NORMAL_LIFESTEAL_PERCENT = 0.10;
     private static final double BOOSTED_LIFESTEAL_PERCENT = 0.25;
 
-    // Note: this is now the SAME radius Hemorrhage's tether uses (was 10,
-    // per your "keep them in the 15 block radius of Blood Sense" request).
-    // Blood Sense's own detection radius is unchanged (still 10) - this is
-    // specifically the tether boundary, tracked separately.
     private static final double HEMORRHAGE_TETHER_RADIUS = 15.0;
     private static final int HEMORRHAGE_TETHER_DURATION_SECONDS = 30;
-    private static final double RUPTURE_DAMAGE = 10.0; // 5 hearts, true damage
+    private static final double RUPTURE_DAMAGE = 10.0;
+
+    // Built with ChatColor constants instead of raw "§" strings to avoid
+    // the encoding glitch that turned "§l" into a literal "l" character.
+    private static final String HEMO_PREFIX =
+            ChatColor.DARK_RED.toString() + ChatColor.BOLD + "Hemorrhage" + ChatColor.GRAY + " » " + ChatColor.RED;
 
     private final Map<UUID, Long> bloodHandsLifestealUntil = new HashMap<>();
 
@@ -86,13 +88,13 @@ public class BloodCombatListener implements Listener {
         if (stacks <= 0) return;
 
         switch (stacks) {
-            case 1 -> attacker.sendMessage("§4§lHemorrhage §7» §c1/5");
+            case 1 -> attacker.playSound(attacker.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
 
             case 2 -> {
                 if (target instanceof Player) {
                     target.setGlowing(true);
                 }
-                attacker.sendMessage("§4§lHemorrhage §7» §c2/5 §7- Target Marked");
+                attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.8f, 1.0f);
             }
 
             case 3 -> {
@@ -100,16 +102,16 @@ public class BloodCombatListener implements Listener {
                     SoulsSMP.getInstance().getRestraintManager()
                             .addRestraint(targetPlayer.getUniqueId(), attacker.getUniqueId(),
                                     HEMORRHAGE_TETHER_RADIUS, false, HEMORRHAGE_TETHER_DURATION_SECONDS);
-                    targetPlayer.sendMessage("§4§lBlood §7» §cYou are bound - you cannot leave the radius.");
+                    targetPlayer.sendTitle("Bound", "You cannot leave the radius.", 0, 40, 10);
                 }
-                attacker.sendMessage("§4§lHemorrhage §7» §c3/5 §7- Target Tethered");
+                attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.9f, 0.9f);
             }
 
-            case 4 -> attacker.sendMessage("§4§lHemorrhage §7» §c4/5");
+            case 4 -> attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.0f);
 
             default -> {
                 hemorrhageManager.clearMark(target.getUniqueId());
-                attacker.sendMessage("§4§lHemorrhage §7» §c5/5 §7- RUPTURE");
+                attacker.playSound(attacker.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.9f, 1.0f);
                 triggerRupture(target, attacker);
             }
         }
@@ -120,7 +122,6 @@ public class BloodCombatListener implements Listener {
                 new Particle.DustOptions(Color.fromRGB(180, 0, 0), 1.6f));
         target.getWorld().playSound(target.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.6f, 1.2f);
 
-        // True damage, direct health change - avoids the recursive event bug.
         double newHealth = Math.max(0, target.getHealth() - RUPTURE_DAMAGE);
         target.setHealth(newHealth);
 

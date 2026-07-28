@@ -24,7 +24,7 @@ public class SilenceManager {
         silencedUntil.put(player.getUniqueId(), System.currentTimeMillis() + (durationSeconds * 1000L));
 
         player.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, durationSeconds * 20, 0, false, true, true));
-        player.sendMessage("§5§lSilenced §7» §7You cannot regenerate mana and abilities cost double.");
+        player.sendTitle("Silenced", "You cannot regenerate mana and abilities cost double.", 0, 60, 10);
     }
 
     public boolean isSilenced(Player player) {

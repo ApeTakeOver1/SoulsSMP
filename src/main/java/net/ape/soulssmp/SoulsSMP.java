@@ -12,6 +12,7 @@ import net.ape.soulssmp.listener.BloodCombatListener;
 import net.ape.soulssmp.listener.CurseGUIListener;
 import net.ape.soulssmp.listener.HudJoinQuitListener;
 import net.ape.soulssmp.listener.PlayerDataListener;
+import net.ape.soulssmp.listener.RestrictionJumpTask;
 import net.ape.soulssmp.listener.RestrictionSprintListener;
 import net.ape.soulssmp.listener.UltimateTriggerListener;
 import net.ape.soulssmp.listener.VoidCombatListener;
@@ -219,5 +220,6 @@ public final class SoulsSMP extends JavaPlugin {
         new HoldTask().runTaskTimer(this, 0L, 5L);
         new BloodDebuffVisualTask().runTaskTimer(this, 0L, 10L);
         new RestraintRingTask().runTaskTimer(this, 0L, 4L);
+        new RestrictionJumpTask().runTaskTimer(this, 0L, 1L);
     }
 }

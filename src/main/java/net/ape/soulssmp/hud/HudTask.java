@@ -8,6 +8,7 @@ import net.ape.soulssmp.soul.types.bloodsoul.BloodHands;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
@@ -115,11 +116,6 @@ public class HudTask extends BukkitRunnable {
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(fullText));
     }
 
-    /**
-     * Returns the mana cost to actually show, doubled if the player is
-     * currently Silenced - matches ManaManager's real doubled cost so the
-     * displayed number is always accurate.
-     */
     private int getDisplayCost(Player player, int baseCost) {
         if (SoulsSMP.getInstance().getSilenceManager().isSilenced(player)) {
             return (int) Math.ceil(baseCost * SoulsSMP.getInstance().getSilenceManager().getCostMultiplier());
@@ -159,17 +155,25 @@ public class HudTask extends BukkitRunnable {
     }
 
     private String buildAbyssMarkBar(Player player) {
+        String costPrefix = "§7(§fALL§7) "; // Abyss Mark costs all current mana
+
         if (player.getGameMode() == GameMode.CREATIVE) {
-            return "§7(§fALL§7) §5§lAbyss Mark §7» §aREADY";
+            return costPrefix + "§5§lAbyss Mark §7» §aREADY";
         }
 
-        int remaining = SoulsSMP.getInstance().getVoidMarkManager().getRemainingMarkSeconds(player.getUniqueId());
+        int hitCount = SoulsSMP.getInstance().getVoidMarkManager().getHitCount(player.getUniqueId());
+        int remainingMarkSeconds = SoulsSMP.getInstance().getVoidMarkManager().getRemainingMarkSeconds(player.getUniqueId());
 
-        if (remaining <= 0) {
-            return "§7(§fALL§7) §5§lAbyss Mark §7» §aREADY";
+        if (remainingMarkSeconds <= 0) {
+            return costPrefix + "§5§lAbyss Mark §7» §aREADY";
         }
 
-        return "§5§lAbyss Mark §7» §dMarked §7(" + remaining + "s)";
+        StringBuilder pips = new StringBuilder();
+        for (int i = 1; i <= 5; i++) { // Max 5 hits for combo
+            pips.append(i <= hitCount ? "§d●" : "§8●");
+        }
+
+        return costPrefix + "§5§lAbyss Mark §7» " + pips + " §7" + hitCount + "/5 §7(" + remainingMarkSeconds + "s)";
     }
 
     private String buildHemorrhageBar(Player player) {
@@ -187,6 +191,8 @@ public class HudTask extends BukkitRunnable {
             pips.append(i <= stacks ? "§c●" : "§8●");
         }
 
-        return "§4§lHemorrhage §7» " + pips + " §7" + stacks + "/5 §7(" + secondsRemaining + "s)";
+        String label = ChatColor.DARK_RED.toString() + ChatColor.BOLD + "Hemorrhage";
+
+        return label + " §7» " + pips + " §7" + stacks + "/5 §7(" + secondsRemaining + "s)";
     }
 }

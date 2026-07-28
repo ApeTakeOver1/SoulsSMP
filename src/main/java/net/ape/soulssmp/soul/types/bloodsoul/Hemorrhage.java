@@ -5,6 +5,7 @@ import net.ape.soulssmp.ability.AbilityType;
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.soul.SoulType;
 import org.bukkit.Particle;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.RayTraceResult;
@@ -23,12 +24,12 @@ public class Hemorrhage extends Ability {
         LivingEntity target = getTarget(player);
 
         if (target == null) {
-            player.sendMessage("§4§lBlood §7» §cNo target in range.");
+            player.sendTitle("Hemorrhage", ChatColor.RED + "No target in range.", 0, 40, 10);
             return false;
         }
 
         if (!SoulsSMP.getInstance().getManaManager().spendMana(player, getManaCost())) {
-            player.sendMessage("§4§lBlood §7» §cNot enough mana.");
+            player.sendTitle("Hemorrhage", ChatColor.RED + "Not enough mana.", 0, 40, 10);
             return false;
         }
 
@@ -37,7 +38,8 @@ public class Hemorrhage extends Ability {
 
         target.getWorld().spawnParticle(Particle.BLOCK_CRUMBLE, target.getLocation().add(0, 1, 0), 20,
                 0.3, 0.5, 0.3, org.bukkit.Material.REDSTONE_BLOCK.createBlockData());
-        player.sendMessage("§4§lBlood §7» §cTarget's blood corrupted.");
+        player.sendTitle("Hemorrhage", ChatColor.RED + "Target Marked", 0, 40, 10);
+        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.0f);
         return true;
     }
 

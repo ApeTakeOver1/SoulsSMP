@@ -35,6 +35,7 @@ public class VoidMarkManager {
 
         if (System.currentTimeMillis() > data.expiresAt) {
             marks.remove(target.getUniqueId());
+            markedTargetByCaster.remove(data.markedBy); // Also remove from caster map
             return false;
         }
 
@@ -47,6 +48,7 @@ public class VoidMarkManager {
 
         if (System.currentTimeMillis() > data.expiresAt) {
             marks.remove(target.getUniqueId());
+            markedTargetByCaster.remove(data.markedBy); // Also remove from caster map
             return -1;
         }
 
@@ -84,5 +86,28 @@ public class VoidMarkManager {
         }
 
         return (int) (remainingMillis / 1000) + 1;
+    }
+
+    /**
+     * Returns the current hit count for the target marked by the given caster,
+     * or 0 if no target is marked or the mark has expired.
+     */
+    public int getHitCount(UUID casterId) {
+        UUID targetId = markedTargetByCaster.get(casterId);
+        if (targetId == null) return 0;
+
+        MarkData data = marks.get(targetId);
+        if (data == null) {
+            markedTargetByCaster.remove(casterId);
+            return 0;
+        }
+
+        if (System.currentTimeMillis() > data.expiresAt) {
+            marks.remove(targetId);
+            markedTargetByCaster.remove(casterId);
+            return 0;
+        }
+
+        return data.hitCount;
     }
 }

@@ -67,10 +67,13 @@ public class BloodHands extends Ability {
 
         player.sendMessage("§4§lBlood §7» §cBlood Hands unleashed.");
 
-        sonicClap(player);
+        boolean controlEligible = hasNearbyTarget(player, CONTROL_TRIGGER_RANGE);
+        boolean rollControl = controlEligible && random.nextBoolean();
 
-        if (hasNearbyTarget(player, CONTROL_TRIGGER_RANGE)) {
+        if (rollControl) {
             control(player);
+        } else {
+            sonicClap(player);
         }
 
         return true;
@@ -134,8 +137,6 @@ public class BloodHands extends Ability {
             if (targets.size() >= 2) break;
         }
 
-        if (targets.isEmpty()) return;
-
         Location front = player.getLocation();
         var forward = front.getDirection().setY(0).normalize();
         var side = new org.bukkit.util.Vector(-forward.getZ(), 0, forward.getX());
@@ -171,46 +172,80 @@ public class BloodHands extends Ability {
         heartsRemaining = Math.max(0, Math.min(5, heartsRemaining));
         int needleCount = 10 + 2 * (5 - heartsRemaining);
 
-        double durationSeconds = 2.0 + Math.max(0, (needleCount - 10) / 10.0) * 3.0;
-        durationSeconds = Math.max(2.0, Math.min(5.0, durationSeconds));
-        long intervalTicks = Math.max(1L, Math.round((durationSeconds * 20) / needleCount));
+        double chargeDurationSeconds = 2.0 + Math.max(0, (needleCount - 10) / 10.0) * 3.0;
+        chargeDurationSeconds = Math.max(2.0, Math.min(5.0, chargeDurationSeconds));
+        long chargeTicks = Math.round(chargeDurationSeconds * 20);
 
-        player.sendMessage("§4§lBlood §7» §fPuncture §7— " + needleCount + " needles over " + String.format("%.1f", durationSeconds) + "s.");
+        player.sendMessage("§4§lBlood §7» §fPuncture §7— gathering " + needleCount + " needles ("
+                + String.format("%.1f", chargeDurationSeconds) + "s)...");
 
-        chargeFormation(player, () -> fireNeedleVolley(player, target, needleCount, 0, intervalTicks));
+        chargeFormation(player, needleCount, chargeTicks, () -> releaseNeedleBurst(player, target, needleCount));
         return true;
     }
 
-    private void chargeFormation(Player player, Runnable onComplete) {
-        Location behind = player.getLocation().clone().subtract(player.getLocation().getDirection().multiply(1.2));
-        behind.add(0, 1, 0);
-
+    /**
+     * Builds a growing particle cluster behind the player over the charge
+     * window. Fix applied here: the loop variable "step" cannot be used
+     * directly inside the lambda passed to runTaskLater (Java requires
+     * captured variables to be effectively final, and a for-loop counter
+     * is never final). Copying it into "currentStep" right before the
+     * lambda solves this - each iteration gets its own fixed copy.
+     */
+    private void chargeFormation(Player player, int needleCount, long chargeTicks, Runnable onComplete) {
         player.getWorld().playSound(player.getLocation(), Sound.BLOCK_AMETHYST_CLUSTER_BREAK, 0.7f, 0.6f);
 
-        for (int i = 0; i < 10; i++) {
-            player.getWorld().spawnParticle(
-                    Particle.DUST, behind, 3, 0.15, 0.15, 0.15, 0,
-                    new Particle.DustOptions(Color.fromRGB(200, 0, 0), 1.2f)
-            );
+        int steps = 10;
+        long stepInterval = Math.max(1L, chargeTicks / steps);
+
+        for (int step = 1; step <= steps; step++) {
+            final int currentStep = step;
+            long delay = currentStep * stepInterval;
+            int particlesThisStep = Math.max(2, (needleCount / steps) * currentStep);
+
+            Bukkit.getScheduler().runTaskLater(SoulsSMP.getInstance(), () -> {
+                Location behind = player.getLocation().clone()
+                        .subtract(player.getLocation().getDirection().multiply(1.2)).add(0, 1, 0);
+
+                player.getWorld().spawnParticle(
+                        Particle.DUST, behind, particlesThisStep, 0.2, 0.25, 0.2, 0,
+                        new Particle.DustOptions(Color.fromRGB(200, 0, 0), 1.3f)
+                );
+
+                if (currentStep % 3 == 0) {
+                    player.getWorld().playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_HIT, 0.5f, 1.8f);
+                }
+            }, delay);
         }
 
-        Bukkit.getScheduler().runTaskLater(SoulsSMP.getInstance(), onComplete, 8L);
+        Bukkit.getScheduler().runTaskLater(SoulsSMP.getInstance(), onComplete, chargeTicks);
     }
 
-    private void fireNeedleVolley(Player player, LivingEntity target, int remaining, int fired, long intervalTicks) {
-        if (remaining <= 0) return;
+    private void releaseNeedleBurst(Player player, LivingEntity target, int needleCount) {
+        if (target.isDead() || !target.isValid()) return;
 
-        Bukkit.getScheduler().runTaskLater(SoulsSMP.getInstance(), () -> {
-            if (target.isDead() || !target.isValid()) return;
+        Location behind = player.getLocation().clone()
+                .subtract(player.getLocation().getDirection().multiply(1.2)).add(0, 1, 0);
+        Location targetPoint = target.getLocation().add(0, 1, 0);
 
-            drawNeedleLine(player.getEyeLocation(), target.getLocation().add(0, 1, 0));
-            target.getWorld().playSound(target.getLocation(), Sound.ENTITY_ARROW_HIT_PLAYER, 0.5f, 1.8f);
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ARROW_SHOOT, 1.0f, 1.6f);
+        target.getWorld().playSound(target.getLocation(), Sound.ENTITY_ARROW_HIT_PLAYER, 0.8f, 1.8f);
 
-            double newHealth = Math.max(0, target.getHealth() - NEEDLE_DAMAGE);
-            target.setHealth(newHealth);
+        for (int i = 0; i < needleCount; i++) {
+            double spreadX = (random.nextDouble() - 0.5) * 0.6;
+            double spreadZ = (random.nextDouble() - 0.5) * 0.6;
+            Location origin = behind.clone().add(spreadX, 0, spreadZ);
 
-            fireNeedleVolley(player, target, remaining - 1, fired + 1, intervalTicks);
-        }, fired == 0 ? 0L : intervalTicks);
+            drawNeedleLine(origin, targetPoint);
+        }
+
+        double totalDamage = needleCount * NEEDLE_DAMAGE;
+        double newHealth = Math.max(0, target.getHealth() - totalDamage);
+        target.setHealth(newHealth);
+
+        target.getWorld().spawnParticle(
+                Particle.DUST, targetPoint, 20, 0.3, 0.3, 0.3, 0,
+                new Particle.DustOptions(Color.fromRGB(210, 0, 0), 1.5f)
+        );
     }
 
     private void drawNeedleLine(Location from, Location to) {

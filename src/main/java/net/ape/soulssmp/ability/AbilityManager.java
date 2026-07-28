@@ -4,6 +4,7 @@ import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.player.PlayerData;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
+import org.bukkit.ChatColor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,13 +27,13 @@ public class AbilityManager {
         Ability ability = registeredAbilities.get(type);
 
         if (ability == null) {
-            player.sendMessage("§8§lSoul §7» §cThat ability isn't available yet.");
+            player.sendTitle("Ability", "That ability isn't available yet.", 0, 40, 10);
             return;
         }
 
         PlayerData data = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(player);
         if (data.getSoul() != ability.getRequiredSoul()) {
-            player.sendMessage("§8§lSoul §7» §c" + ability.getDisplayName() + " doesn't belong to your Soul.");
+            player.sendTitle("Ability", ChatColor.DARK_GRAY + "" + ChatColor.BOLD + ability.getDisplayName() + " doesn't belong to your Soul.", 0, 40, 10);
             return;
         }
 
@@ -42,7 +43,7 @@ public class AbilityManager {
         if (!isCreative && hasCooldown) {
             long remaining = getRemainingCooldownSeconds(player, type);
             if (remaining > 0) {
-                player.sendMessage("§8§lSoul §7» §c" + ability.getDisplayName() + " is on cooldown (" + remaining + "s).");
+                player.sendTitle("Ability Cooldown", ChatColor.DARK_GRAY + "" + ChatColor.BOLD + ability.getDisplayName() + " is on cooldown (" + remaining + "s).", 0, 40, 10);
                 return;
             }
         }
