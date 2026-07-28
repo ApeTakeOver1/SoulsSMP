@@ -47,18 +47,6 @@ public class AbilityManager {
             }
         }
 
-        var silenceManager = SoulsSMP.getInstance().getSilenceManager();
-        if (!isCreative && silenceManager.isSilenced(player)) {
-            player.sendMessage("§8§lSoul §7» §5Silenced - activation delayed...");
-            org.bukkit.Bukkit.getScheduler().runTaskLater(SoulsSMP.getInstance(), () -> {
-                boolean fullUse = ability.execute(player);
-                if (fullUse && !isCreative && hasCooldown) {
-                    setCooldown(player, type, ability.getCooldownSeconds());
-                }
-            }, silenceManager.getActivationDelayTicks());
-            return;
-        }
-
         boolean fullUse = ability.execute(player);
 
         if (fullUse && !isCreative && hasCooldown) {

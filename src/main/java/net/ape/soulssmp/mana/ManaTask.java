@@ -19,15 +19,12 @@ public class ManaTask extends BukkitRunnable {
             if (data.getSoul() == null) continue;
             if (data.getMana() >= data.getMaxMana()) continue;
 
-            int amount = MANA_PER_TICK;
             if (SoulsSMP.getInstance().getSilenceManager().isSilenced(player)) {
-                amount = (int) Math.ceil(amount * SoulsSMP.getInstance().getSilenceManager().getManaGainMultiplier());
+                continue; // Silenced - no mana regeneration at all
             }
 
-            if (amount <= 0) continue;
-
             int before = data.getMana();
-            SoulsSMP.getInstance().getManaManager().addMana(player, amount);
+            SoulsSMP.getInstance().getManaManager().addMana(player, MANA_PER_TICK);
             int after = data.getMana();
 
             if (after > before) {

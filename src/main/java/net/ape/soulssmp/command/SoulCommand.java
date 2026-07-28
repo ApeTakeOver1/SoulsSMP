@@ -24,8 +24,13 @@ public class SoulCommand implements CommandExecutor {
             return true;
         }
 
-        if (args[0].equalsIgnoreCase("ability")) {
-            handleAbilityMenu(player, args);
+        if (args[0].equalsIgnoreCase("ability1")) {
+            useMappedAbility(player, 1);
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("ability2")) {
+            useMappedAbility(player, 2);
             return true;
         }
 
@@ -34,8 +39,24 @@ public class SoulCommand implements CommandExecutor {
             return true;
         }
 
-        player.sendMessage("§8§lSoul §7» §cUnknown subcommand. Try §f/soul§7, §f/soul info§7, or §f/soul ability");
+        player.sendMessage("§8§lSoul §7» §cUnknown subcommand. Try §f/soul§7, §f/soul info§7, §f/soul ability1§7, or §f/soul ability2");
         return true;
+    }
+
+    private void useMappedAbility(Player player, int slot) {
+        PlayerData data = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(player);
+        AbilityType type;
+
+        if (data.getSoul() == SoulType.VOID) {
+            type = slot == 1 ? AbilityType.VOID_STEP : AbilityType.ABYSS_MARK;
+        } else if (data.getSoul() == SoulType.BLOOD) {
+            type = slot == 1 ? AbilityType.CURSE : AbilityType.HEMORRHAGE;
+        } else {
+            player.sendMessage("§8§lSoul §7» §cYou have no Soul bound.");
+            return;
+        }
+
+        SoulsSMP.getInstance().getAbilityManager().useAbility(player, type);
     }
 
     private void showSelfInfo(Player player) {
@@ -60,40 +81,6 @@ public class SoulCommand implements CommandExecutor {
         }
 
         player.sendMessage("§8§m----------------------------------");
-    }
-
-    private void handleAbilityMenu(Player player, String[] args) {
-        PlayerData data = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(player);
-
-        if (args.length == 1) {
-            player.sendMessage("§8§l✦ Your Abilities §7» §fChoose one:");
-
-            if (data.getSoul() == SoulType.VOID) {
-                player.sendMessage("§7 - §5/soul ability voidstep");
-                player.sendMessage("§7 - §5/soul ability abyssmark");
-            } else if (data.getSoul() == SoulType.BLOOD) {
-                player.sendMessage("§7 - §4/soul ability curse");
-                player.sendMessage("§7 - §4/soul ability hemorrhage");
-            } else {
-                player.sendMessage("§7You have no Soul bound.");
-            }
-            return;
-        }
-
-        AbilityType type = switch (args[1].toLowerCase()) {
-            case "voidstep" -> AbilityType.VOID_STEP;
-            case "abyssmark" -> AbilityType.ABYSS_MARK;
-            case "curse" -> AbilityType.CURSE;
-            case "hemorrhage" -> AbilityType.HEMORRHAGE;
-            default -> null;
-        };
-
-        if (type == null) {
-            player.sendMessage("§8§lSoul §7» §cUnknown ability: " + args[1]);
-            return;
-        }
-
-        SoulsSMP.getInstance().getAbilityManager().useAbility(player, type);
     }
 
     private void handleInfo(Player player, String[] args) {
@@ -138,10 +125,10 @@ public class SoulCommand implements CommandExecutor {
         player.sendMessage("§7 - Resistance below 30% health");
         player.sendMessage("§7 - Drains nearby enemy mana while you're at full HP");
         player.sendMessage("");
-        player.sendMessage("§f§lVoid Step §7(/soul ability voidstep):");
+        player.sendMessage("§f§lAbility 1 §7(/soul ability1) - Void Step:");
         player.sendMessage("§7 Arms a short dash, use again to teleport + slash everything in the path");
         player.sendMessage("");
-        player.sendMessage("§f§lAbyss Mark §7(/soul ability abyssmark):");
+        player.sendMessage("§f§lAbility 2 §7(/soul ability2) - Abyss Mark:");
         player.sendMessage("§7 Costs all your mana - marks a target for combo bonuses");
         player.sendMessage("");
         player.sendMessage("§f§lNull Field §7(Sneak + F, Ultimate):");
@@ -157,14 +144,14 @@ public class SoulCommand implements CommandExecutor {
         player.sendMessage("§7 - Blood Pact: below 40% HP, gain speed, attack speed, lifesteal");
         player.sendMessage("§7 - Blood Sense: detect low-HP enemies within 10 blocks");
         player.sendMessage("");
-        player.sendMessage("§f§lCurse §7(/soul ability curse):");
-        player.sendMessage("§7 3s channel, then locks target with a random debuff");
+        player.sendMessage("§f§lAbility 1 §7(/soul ability1) - Curse:");
+        player.sendMessage("§7 3s channel, then locks target - choose a debuff");
         player.sendMessage("");
-        player.sendMessage("§f§lHemorrhage §7(/soul ability hemorrhage):");
-        player.sendMessage("§7 Mark that builds stacks - ruptures at 5 hits");
+        player.sendMessage("§f§lAbility 2 §7(/soul ability2) - Hemorrhage:");
+        player.sendMessage("§7 Mark that builds stacks - ruptures at 5 hits for 5 hearts true damage");
         player.sendMessage("");
-        player.sendMessage("§f§lBlood Hands §7(Sneak + F, Ultimate):");
-        player.sendMessage("§7 Costs HP, not mana - random powerful effect");
+        player.sendMessage("§f§lBlood Hands / Puncture §7(Sneak + F, Ultimate):");
+        player.sendMessage("§7 Above 5 hearts: Blood Hands (costs HP). At/below 5 hearts: Puncture (free)");
         player.sendMessage("§8§m----------------------------------");
     }
 

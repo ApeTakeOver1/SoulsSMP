@@ -116,24 +116,34 @@ public class HudTask extends BukkitRunnable {
     }
 
     /**
-     * colorCode lets each ability have its own bar/label color (e.g. Curse
-     * is dark red "§4", Void Step is light purple "§d") instead of sharing
-     * one hardcoded color across every ability.
+     * Returns the mana cost to actually show, doubled if the player is
+     * currently Silenced - matches ManaManager's real doubled cost so the
+     * displayed number is always accurate.
      */
-    private String buildCooldownBar(Player player, AbilityType type, String label, String colorCode) {
-        if (player.getGameMode() == GameMode.CREATIVE) {
-            return colorCode + "§l" + label + " §7» §aREADY";
+    private int getDisplayCost(Player player, int baseCost) {
+        if (SoulsSMP.getInstance().getSilenceManager().isSilenced(player)) {
+            return (int) Math.ceil(baseCost * SoulsSMP.getInstance().getSilenceManager().getCostMultiplier());
         }
+        return baseCost;
+    }
 
+    private String buildCooldownBar(Player player, AbilityType type, String label, String colorCode) {
         Ability ability = SoulsSMP.getInstance().getAbilityManager().getAbility(type);
         if (ability == null) return "§7" + label + ": §8N/A";
+
+        int displayCost = getDisplayCost(player, ability.getManaCost());
+        String costPrefix = "§7(§f" + displayCost + "§7) ";
+
+        if (player.getGameMode() == GameMode.CREATIVE) {
+            return costPrefix + colorCode + "§l" + label + " §7» §aREADY";
+        }
 
         long remaining = SoulsSMP.getInstance().getAbilityManager()
                 .getRemainingCooldownSeconds(player, type);
         int totalCooldown = ability.getCooldownSeconds();
 
         if (remaining <= 0) {
-            return colorCode + "§l" + label + " §7» §aREADY";
+            return costPrefix + colorCode + "§l" + label + " §7» §aREADY";
         }
 
         int totalSegments = 10;
@@ -145,28 +155,24 @@ public class HudTask extends BukkitRunnable {
             bar.append(i < filled ? colorCode + "▌" : "§8▌");
         }
 
-        return colorCode + "§l" + label + " §7» " + bar + " §7" + remaining + "s";
+        return costPrefix + colorCode + "§l" + label + " §7» " + bar + " §7" + remaining + "s";
     }
 
     private String buildAbyssMarkBar(Player player) {
         if (player.getGameMode() == GameMode.CREATIVE) {
-            return "§5§lAbyss Mark §7» §aREADY";
+            return "§7(§fALL§7) §5§lAbyss Mark §7» §aREADY";
         }
 
         int remaining = SoulsSMP.getInstance().getVoidMarkManager().getRemainingMarkSeconds(player.getUniqueId());
 
         if (remaining <= 0) {
-            return "§5§lAbyss Mark §7» §aREADY";
+            return "§7(§fALL§7) §5§lAbyss Mark §7» §aREADY";
         }
 
         return "§5§lAbyss Mark §7» §dMarked §7(" + remaining + "s)";
     }
 
     private String buildHemorrhageBar(Player player) {
-        if (player.getGameMode() == GameMode.CREATIVE) {
-            return "§4§lHemorrhage §7» §aREADY";
-        }
-
         int[] status = SoulsSMP.getInstance().getHemorrhageManager().getCurrentMarkStatus(player.getUniqueId());
 
         if (status == null) {

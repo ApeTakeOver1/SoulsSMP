@@ -84,10 +84,7 @@ public class Curse extends Ability {
         }
     }
 
-    /**
-     * Instead of randomly rolling an effect, this now opens a GUI letting
-     * the caster pick which of the 3 debuffs to apply themselves.
-     */
+    // Manual GUI stays active for testing. This resolveCurse just opens it.
     private void resolveCurse(Player player) {
         LivingEntity target = getLockedTarget(player);
 
@@ -100,6 +97,24 @@ public class Curse extends Ability {
 
         SoulsSMP.getInstance().getCursePendingManager().setPendingTarget(player.getUniqueId(), target);
         CurseGUI.open(player);
+    }
+
+    /**
+     * Ready-to-use weighted roll: Puppet 25%, Restriction 37.5%, Silence 37.5%.
+     * Not currently called anywhere - the GUI handles selection for now.
+     * Swap resolveCurse() to call this instead of CurseGUI.open() whenever
+     * you want automatic weighted rolling instead of manual pick.
+     */
+    public void rollWeightedEffect(LivingEntity target, Player caster) {
+        double roll = random.nextDouble();
+
+        if (roll < 0.25) {
+            applyPuppet(target, caster);
+        } else if (roll < 0.625) {
+            applyRestriction(target, caster);
+        } else {
+            applySilence(target, caster);
+        }
     }
 
     private LivingEntity getLockedTarget(Player player) {
@@ -186,21 +201,21 @@ public class Curse extends Ability {
     public void applySilence(LivingEntity target, Player caster) {
         if (target instanceof Player targetPlayer) {
             SoulsSMP.getInstance().getSilenceManager().applySilence(targetPlayer, SILENCE_DURATION_SECONDS);
-            targetPlayer.sendTitle("§4§lSILENCED", "§7Abilities cost more, mana regen crippled", 10, 60, 10);
-            targetPlayer.sendMessage("§4§lBlood §7» §cYou've been Silenced by the Curse.");
         }
 
         caster.sendMessage("§4§lBlood §7» §cCurse landed: §fSilence");
     }
 
+    /**
+     * No longer an instant snap-drag - now just restrains the target within
+     * a 5-block circle around the caster (visualized via RestraintRingTask),
+     * same "keep them in range" mechanic as Hemorrhage's tether.
+     */
     public void applyPuppet(LivingEntity target, Player caster) {
         if (!(target instanceof Player targetPlayer)) return;
 
-        Location pullTo = caster.getLocation().clone().add(caster.getLocation().getDirection().multiply(-1.5));
-        targetPlayer.teleport(pullTo);
-
         SoulsSMP.getInstance().getRestraintManager()
-                .addRestraint(targetPlayer.getUniqueId(), caster.getUniqueId(), PUPPET_RADIUS, true, PUPPET_DURATION_SECONDS);
+                .addRestraint(targetPlayer.getUniqueId(), caster.getUniqueId(), PUPPET_RADIUS, false, PUPPET_DURATION_SECONDS);
 
         randomizeHotbar(targetPlayer);
 

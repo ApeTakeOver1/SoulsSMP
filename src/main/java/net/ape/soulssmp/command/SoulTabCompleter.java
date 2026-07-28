@@ -14,13 +14,9 @@ public class SoulTabCompleter implements TabCompleter {
         List<String> options = new ArrayList<>();
 
         if (args.length == 1) {
-            options.add("ability");
+            options.add("ability1");
+            options.add("ability2");
             options.add("info");
-        } else if (args.length == 2 && args[0].equalsIgnoreCase("ability")) {
-            options.add("voidstep");
-            options.add("abyssmark");
-            options.add("curse");
-            options.add("hemorrhage");
         } else if (args.length == 2 && args[0].equalsIgnoreCase("info")) {
             options.add("void");
             options.add("blood");

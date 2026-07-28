@@ -24,6 +24,14 @@ public class BloodCombatListener implements Listener {
     private static final double NORMAL_LIFESTEAL_PERCENT = 0.10;
     private static final double BOOSTED_LIFESTEAL_PERCENT = 0.25;
 
+    // Note: this is now the SAME radius Hemorrhage's tether uses (was 10,
+    // per your "keep them in the 15 block radius of Blood Sense" request).
+    // Blood Sense's own detection radius is unchanged (still 10) - this is
+    // specifically the tether boundary, tracked separately.
+    private static final double HEMORRHAGE_TETHER_RADIUS = 15.0;
+    private static final int HEMORRHAGE_TETHER_DURATION_SECONDS = 30;
+    private static final double RUPTURE_DAMAGE = 10.0; // 5 hearts, true damage
+
     private final Map<UUID, Long> bloodHandsLifestealUntil = new HashMap<>();
 
     public void applyLifestealBoost(UUID playerId, int durationSeconds) {
@@ -90,7 +98,8 @@ public class BloodCombatListener implements Listener {
             case 3 -> {
                 if (target instanceof Player targetPlayer) {
                     SoulsSMP.getInstance().getRestraintManager()
-                            .addRestraint(targetPlayer.getUniqueId(), attacker.getUniqueId(), 10.0, false, 30);
+                            .addRestraint(targetPlayer.getUniqueId(), attacker.getUniqueId(),
+                                    HEMORRHAGE_TETHER_RADIUS, false, HEMORRHAGE_TETHER_DURATION_SECONDS);
                     targetPlayer.sendMessage("§4§lBlood §7» §cYou are bound - you cannot leave the radius.");
                 }
                 attacker.sendMessage("§4§lHemorrhage §7» §c3/5 §7- Target Tethered");
@@ -99,8 +108,6 @@ public class BloodCombatListener implements Listener {
             case 4 -> attacker.sendMessage("§4§lHemorrhage §7» §c4/5");
 
             default -> {
-                // Clear the mark BEFORE dealing rupture damage to avoid the
-                // recursive rupture loop from re-firing this event.
                 hemorrhageManager.clearMark(target.getUniqueId());
                 attacker.sendMessage("§4§lHemorrhage §7» §c5/5 §7- RUPTURE");
                 triggerRupture(target, attacker);
@@ -113,15 +120,15 @@ public class BloodCombatListener implements Listener {
                 new Particle.DustOptions(Color.fromRGB(180, 0, 0), 1.6f));
         target.getWorld().playSound(target.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.6f, 1.2f);
 
-        double newHealth = Math.max(0, target.getHealth() - 5.0);
+        // True damage, direct health change - avoids the recursive event bug.
+        double newHealth = Math.max(0, target.getHealth() - RUPTURE_DAMAGE);
         target.setHealth(newHealth);
 
         if (target instanceof Player targetPlayer) {
             var direction = targetPlayer.getLocation().getDirection().multiply(-1);
             targetPlayer.setVelocity(direction.multiply(1.3).setY(0.4));
-            SoulsSMP.getInstance().getSilenceManager().applySilence(targetPlayer, 5);
             targetPlayer.setGlowing(false);
-            targetPlayer.sendTitle("§c§lRUPTURE", "§7Silenced for 5 seconds", 5, 40, 10);
+            targetPlayer.sendTitle("§c§lRUPTURE", "§75 hearts of true damage", 5, 40, 10);
         }
     }
 }

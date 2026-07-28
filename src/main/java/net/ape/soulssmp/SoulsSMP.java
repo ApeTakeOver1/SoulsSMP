@@ -30,6 +30,7 @@ import net.ape.soulssmp.soul.types.bloodsoul.HemorrhageManager;
 import net.ape.soulssmp.soul.types.bloodsoul.HoldManager;
 import net.ape.soulssmp.soul.types.bloodsoul.HoldTask;
 import net.ape.soulssmp.soul.types.bloodsoul.RestraintManager;
+import net.ape.soulssmp.soul.types.bloodsoul.RestraintRingTask;
 import net.ape.soulssmp.soul.types.bloodsoul.RestraintTask;
 import net.ape.soulssmp.soul.types.bloodsoul.RestrictionManager;
 import net.ape.soulssmp.soul.types.voidsoul.AbyssMark;
@@ -217,5 +218,6 @@ public final class SoulsSMP extends JavaPlugin {
         new RestraintTask().runTaskTimer(this, 0L, 5L);
         new HoldTask().runTaskTimer(this, 0L, 5L);
         new BloodDebuffVisualTask().runTaskTimer(this, 0L, 10L);
+        new RestraintRingTask().runTaskTimer(this, 0L, 4L);
     }
 }
