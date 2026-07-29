@@ -1,46 +1,37 @@
 package net.ape.soulssmp;
 
-import net.ape.soulssmp.ability.AbilityManager;
-import net.ape.soulssmp.ability.SilenceManager;
-import net.ape.soulssmp.command.SoulCommand;
-import net.ape.soulssmp.command.SoulTabCompleter;
-import net.ape.soulssmp.command.SoulTestCommand;
-import net.ape.soulssmp.command.SoulTestTabCompleter;
-import net.ape.soulssmp.hud.HudManager;
-import net.ape.soulssmp.hud.HudTask;
-import net.ape.soulssmp.listener.BloodCombatListener;
-import net.ape.soulssmp.listener.CurseGUIListener;
-import net.ape.soulssmp.listener.HudJoinQuitListener;
-import net.ape.soulssmp.listener.PlayerDataListener;
-import net.ape.soulssmp.listener.RestrictionJumpTask;
-import net.ape.soulssmp.listener.RestrictionSprintListener;
-import net.ape.soulssmp.listener.UltimateTriggerListener;
-import net.ape.soulssmp.listener.VoidCombatListener;
-import net.ape.soulssmp.mana.ManaManager;
-import net.ape.soulssmp.mana.ManaTask;
-import net.ape.soulssmp.player.PlayerDataManager;
-import net.ape.soulssmp.soul.SoulManager;
-import net.ape.soulssmp.soul.types.bloodsoul.BloodDebuffVisualTask;
-import net.ape.soulssmp.soul.types.bloodsoul.BloodHands;
-import net.ape.soulssmp.soul.types.bloodsoul.BloodPassiveTask;
-import net.ape.soulssmp.soul.types.bloodsoul.BloodSenseManager;
-import net.ape.soulssmp.soul.types.bloodsoul.Curse;
-import net.ape.soulssmp.soul.types.bloodsoul.CursePendingManager;
-import net.ape.soulssmp.soul.types.bloodsoul.Hemorrhage;
-import net.ape.soulssmp.soul.types.bloodsoul.HemorrhageManager;
-import net.ape.soulssmp.soul.types.bloodsoul.HoldManager;
-import net.ape.soulssmp.soul.types.bloodsoul.HoldTask;
-import net.ape.soulssmp.soul.types.bloodsoul.RestraintManager;
-import net.ape.soulssmp.soul.types.bloodsoul.RestraintRingTask;
-import net.ape.soulssmp.soul.types.bloodsoul.RestraintTask;
-import net.ape.soulssmp.soul.types.bloodsoul.RestrictionManager;
-import net.ape.soulssmp.soul.types.voidsoul.AbyssMark;
-import net.ape.soulssmp.soul.types.voidsoul.NullField;
-import net.ape.soulssmp.soul.types.voidsoul.NullFieldManager;
-import net.ape.soulssmp.soul.types.voidsoul.ShadowCloneManager;
-import net.ape.soulssmp.soul.types.voidsoul.VoidMarkManager;
-import net.ape.soulssmp.soul.types.voidsoul.VoidPassiveTask;
-import net.ape.soulssmp.soul.types.voidsoul.VoidStep;
+import net.ape.soulssmp.managers.AbilityManager;
+import net.ape.soulssmp.managers.SilenceManager;
+import net.ape.soulssmp.commands.SoulCommand;
+import net.ape.soulssmp.commands.SoulTabCompleter;
+import net.ape.soulssmp.commands.SoulTestCommand;
+import net.ape.soulssmp.commands.SoulTestTabCompleter;
+import net.ape.soulssmp.managers.HudManager;
+import net.ape.soulssmp.tasks.HudTask;
+import net.ape.soulssmp.listeners.BloodCombatListener;
+import net.ape.soulssmp.listeners.CurseGUIListener;
+import net.ape.soulssmp.listeners.HudJoinQuitListener;
+import net.ape.soulssmp.listeners.PlayerDataListener;
+import net.ape.soulssmp.tasks.RestrictionJumpTask;
+import net.ape.soulssmp.listeners.RestrictionSprintListener;
+import net.ape.soulssmp.listeners.UltimateTriggerListener;
+import net.ape.soulssmp.listeners.VoidCombatListener;
+import net.ape.soulssmp.managers.ManaManager;
+import net.ape.soulssmp.tasks.ManaTask;
+import net.ape.soulssmp.managers.player.PlayerDataManager;
+import net.ape.soulssmp.managers.progression.SoulManager;
+import net.ape.soulssmp.abilities.blood.ultimate.BloodHands;
+import net.ape.soulssmp.abilities.blood.passive.BloodPassiveTask;
+import net.ape.soulssmp.abilities.blood.active.Curse;
+import net.ape.soulssmp.abilities.blood.active.Hemorrhage;
+import net.ape.soulssmp.tasks.HoldTask;
+import net.ape.soulssmp.managers.bloodsoul.RestraintManager;
+import net.ape.soulssmp.tasks.RestraintRingTask;
+import net.ape.soulssmp.tasks.RestraintTask;
+import net.ape.soulssmp.abilities.voidsoul.active.AbyssMark;
+import net.ape.soulssmp.abilities.voidsoul.ultimate.NullField;
+import net.ape.soulssmp.abilities.voidsoul.passive.VoidPassiveTask;
+import net.ape.soulssmp.abilities.voidsoul.active.VoidStep;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -51,19 +42,18 @@ public final class SoulsSMP extends JavaPlugin {
     private PlayerDataManager playerDataManager;
     private SoulManager soulManager;
     private ManaManager manaManager;
-    private VoidMarkManager voidMarkManager;
-    private NullFieldManager nullFieldManager;
+    private AbyssMark abyssMark;
+    private NullField nullField;
     private AbilityManager abilityManager;
     private HudManager hudManager;
-    private ShadowCloneManager shadowCloneManager;
-    private BloodSenseManager bloodSenseManager;
+    private VoidStep voidStep;
+    private BloodPassiveTask bloodPassiveTask;
     private SilenceManager silenceManager;
     private RestraintManager restraintManager;
-    private RestrictionManager restrictionManager;
-    private HemorrhageManager hemorrhageManager;
-    private HoldManager holdManager;
+    private Curse curse;
+    private Hemorrhage hemorrhage;
+    private BloodHands bloodHands;
     private BloodCombatListener bloodCombatListener;
-    private CursePendingManager cursePendingManager;
 
     @Override
     public void onEnable() {
@@ -72,26 +62,25 @@ public final class SoulsSMP extends JavaPlugin {
         playerDataManager = new PlayerDataManager();
         soulManager = new SoulManager(playerDataManager);
         manaManager = new ManaManager(playerDataManager);
-        voidMarkManager = new VoidMarkManager();
-        nullFieldManager = new NullFieldManager();
         abilityManager = new AbilityManager();
         hudManager = new HudManager();
-        shadowCloneManager = new ShadowCloneManager();
-        bloodSenseManager = new BloodSenseManager();
+        bloodPassiveTask = new BloodPassiveTask();
         silenceManager = new SilenceManager();
         restraintManager = new RestraintManager();
-        restrictionManager = new RestrictionManager();
-        hemorrhageManager = new HemorrhageManager();
-        holdManager = new HoldManager();
         bloodCombatListener = new BloodCombatListener();
-        cursePendingManager = new CursePendingManager();
 
-        abilityManager.registerAbility(new VoidStep());
-        abilityManager.registerAbility(new AbyssMark());
-        abilityManager.registerAbility(new NullField());
-        abilityManager.registerAbility(new Curse());
-        abilityManager.registerAbility(new Hemorrhage());
-        abilityManager.registerAbility(new BloodHands());
+        voidStep = new VoidStep();
+        abilityManager.registerAbility(voidStep);
+        abyssMark = new AbyssMark();
+        abilityManager.registerAbility(abyssMark);
+        nullField = new NullField();
+        abilityManager.registerAbility(nullField);
+        curse = new Curse();
+        abilityManager.registerAbility(curse);
+        hemorrhage = new Hemorrhage();
+        abilityManager.registerAbility(hemorrhage);
+        bloodHands = new BloodHands();
+        abilityManager.registerAbility(bloodHands);
 
         getLogger().info("=================================");
         getLogger().info("Souls SMP has awakened!");
@@ -107,7 +96,7 @@ public final class SoulsSMP extends JavaPlugin {
             hudManager.createBars(player);
         }
 
-        getServer().getScheduler().runTask(this, () -> bloodSenseManager.setupTeam());
+        getServer().getScheduler().runTask(this, () -> bloodPassiveTask.setupSenseTeam());
     }
 
     @Override
@@ -116,8 +105,8 @@ public final class SoulsSMP extends JavaPlugin {
             playerDataManager.saveAll();
         }
 
-        if (shadowCloneManager != null) {
-            shadowCloneManager.removeAll();
+        if (voidStep != null) {
+            voidStep.removeAllClones();
         }
 
         getLogger().info("=================================");
@@ -142,12 +131,12 @@ public final class SoulsSMP extends JavaPlugin {
         return manaManager;
     }
 
-    public VoidMarkManager getVoidMarkManager() {
-        return voidMarkManager;
+    public AbyssMark getAbyssMark() {
+        return abyssMark;
     }
 
-    public NullFieldManager getNullFieldManager() {
-        return nullFieldManager;
+    public NullField getNullField() {
+        return nullField;
     }
 
     public AbilityManager getAbilityManager() {
@@ -158,14 +147,6 @@ public final class SoulsSMP extends JavaPlugin {
         return hudManager;
     }
 
-    public ShadowCloneManager getShadowCloneManager() {
-        return shadowCloneManager;
-    }
-
-    public BloodSenseManager getBloodSenseManager() {
-        return bloodSenseManager;
-    }
-
     public SilenceManager getSilenceManager() {
         return silenceManager;
     }
@@ -174,24 +155,20 @@ public final class SoulsSMP extends JavaPlugin {
         return restraintManager;
     }
 
-    public RestrictionManager getRestrictionManager() {
-        return restrictionManager;
+    public Curse getCurse() {
+        return curse;
     }
 
-    public HemorrhageManager getHemorrhageManager() {
-        return hemorrhageManager;
+    public Hemorrhage getHemorrhage() {
+        return hemorrhage;
     }
 
-    public HoldManager getHoldManager() {
-        return holdManager;
+    public BloodHands getBloodHands() {
+        return bloodHands;
     }
 
     public BloodCombatListener getBloodCombatListener() {
         return bloodCombatListener;
-    }
-
-    public CursePendingManager getCursePendingManager() {
-        return cursePendingManager;
     }
 
     private void registerListeners() {
@@ -215,10 +192,9 @@ public final class SoulsSMP extends JavaPlugin {
         new HudTask().runTaskTimer(this, 0L, 4L);
         new ManaTask().runTaskTimer(this, 100L, 100L);
         new VoidPassiveTask().runTaskTimer(this, 0L, 10L);
-        new BloodPassiveTask().runTaskTimer(this, 0L, 10L);
+        bloodPassiveTask.runTaskTimer(this, 0L, 10L);
         new RestraintTask().runTaskTimer(this, 0L, 5L);
         new HoldTask().runTaskTimer(this, 0L, 5L);
-        new BloodDebuffVisualTask().runTaskTimer(this, 0L, 10L);
         new RestraintRingTask().runTaskTimer(this, 0L, 4L);
         new RestrictionJumpTask().runTaskTimer(this, 0L, 1L);
     }
