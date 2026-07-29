@@ -25,6 +25,8 @@ public class UltimateTriggerListener implements Listener {
             SoulsSMP.getInstance().getAbilityManager().useAbility(event.getPlayer(), AbilityType.NULL_FIELD);
         } else if (data.getSoul() == SoulType.BLOOD) {
             SoulsSMP.getInstance().getAbilityManager().useAbility(event.getPlayer(), AbilityType.BLOOD_HANDS);
+        } else if (data.getSoul() == SoulType.ECHO) {
+            SoulsSMP.getInstance().getAbilityManager().useAbility(event.getPlayer(), AbilityType.ABSOLUTE_ECHO);
         }
     }
 }

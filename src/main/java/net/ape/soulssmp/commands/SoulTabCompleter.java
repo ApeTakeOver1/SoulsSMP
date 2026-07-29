@@ -20,6 +20,7 @@ public class SoulTabCompleter implements TabCompleter {
         } else if (args.length == 2 && args[0].equalsIgnoreCase("info")) {
             options.add("void");
             options.add("blood");
+            options.add("echo");
         }
 
         return filterMatches(options, args.length == 0 ? "" : args[args.length - 1]);

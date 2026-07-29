@@ -16,6 +16,7 @@ public class SoulTestTabCompleter implements TabCompleter {
         if (args.length == 1) {
             options.add("void");
             options.add("blood");
+            options.add("echo");
             options.add("mana");
         }
 

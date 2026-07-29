@@ -51,6 +51,8 @@ public class SoulCommand implements CommandExecutor {
             type = slot == 1 ? AbilityType.VOID_STEP : AbilityType.ABYSS_MARK;
         } else if (data.getSoul() == SoulType.BLOOD) {
             type = slot == 1 ? AbilityType.CURSE : AbilityType.HEMORRHAGE;
+        } else if (data.getSoul() == SoulType.ECHO) {
+            type = slot == 1 ? AbilityType.FALSE_REFLECTION : AbilityType.VANISHING_STRIKE;
         } else {
             player.sendMessage("§8§lSoul §7» §cYou have no Soul bound.");
             return;
@@ -70,7 +72,15 @@ public class SoulCommand implements CommandExecutor {
             player.sendMessage("§7You have not been bound to a Soul yet.");
         } else {
             player.sendMessage("§7Soul: §f" + formatSoulName(data.getSoul()));
-            player.sendMessage("§7Mana: §f" + (creative ? "∞" : data.getMana() + " / " + data.getMaxMana()));
+
+            if (data.getSoul() == SoulType.ECHO) {
+                double resonance = SoulsSMP.getInstance().getResonanceManager().getResonance(player);
+                player.sendMessage("§7Resonance: §f" + (creative ? "∞" : (int) resonance + "% §7(" +
+                        SoulsSMP.getInstance().getResonanceManager().getTier(player).getDisplayName() + "§7)"));
+            } else {
+                player.sendMessage("§7Mana: §f" + (creative ? "∞" : data.getMana() + " / " + data.getMaxMana()));
+            }
+
             player.sendMessage("§7Favor: §f" + data.getFavor() + " §7(-5 to +5)");
             player.sendMessage("§7Resurrections: §f" + data.getResurrectionCount());
             player.sendMessage("§7Awakened Weapon: §f" + (data.isAwakened() ? "Yes" : "No"));
@@ -95,7 +105,8 @@ public class SoulCommand implements CommandExecutor {
         player.sendMessage("");
 
         for (SoulType type : SoulType.values()) {
-            player.sendMessage("§7 - §f" + formatSoulName(type) + " §a(available)");
+            String status = type == SoulType.ECHO ? "§e(passive live, abilities in progress)" : "§a(available)";
+            player.sendMessage("§7 - §f" + formatSoulName(type) + " " + status);
         }
 
         player.sendMessage("§8§m----------------------------------");
@@ -114,7 +125,26 @@ public class SoulCommand implements CommandExecutor {
             showVoidDetail(player);
         } else if (type == SoulType.BLOOD) {
             showBloodDetail(player);
+        } else if (type == SoulType.ECHO) {
+            showEchoDetail(player);
         }
+    }
+
+    private void showEchoDetail(Player player) {
+        player.sendMessage("§8§m----------------------------------");
+        player.sendMessage("§f§l✦ Echo Soul §7— §7Confusion, trickery, deception");
+        player.sendMessage("");
+        player.sendMessage("§f§lNo Mana §7— runs on the Noise Meter (Resonance) instead");
+        player.sendMessage("§7 - Speed II always, Speed III once Resonance rises above 0%");
+        player.sendMessage("§7 - Immune to Warden targeting and Sonic Boom damage");
+        player.sendMessage("§7 - Resonance rises from combat and nearby explosions, drains when out of combat");
+        player.sendMessage("§7 - §f0-25% Echo§7: extra Resonance on hit, fake hit sounds");
+        player.sendMessage("§7 - §f25-50% Distorted Echo§7: slight flicker, quiet footsteps, hidden nametag");
+        player.sendMessage("§7 - §f50-75% Lost Signal§7: heavier flicker, illusion footsteps + fake swings");
+        player.sendMessage("§7 - §f75-100% Perfect Echo§7: fully invisible, afterimages, briefly revealed on attack");
+        player.sendMessage("");
+        player.sendMessage("§7§oAbilities (False Reflection, Vanishing Strike, Absolute Echo) are not implemented yet.");
+        player.sendMessage("§8§m----------------------------------");
     }
 
     private void showVoidDetail(Player player) {

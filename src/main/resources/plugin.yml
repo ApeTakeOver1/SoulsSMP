@@ -13,4 +13,4 @@ commands:
     usage: /soul <ability>
   soultest:
     description: TEMP - force-assign a soul and mana for testing
-    usage: /soultest <void>
+    usage: /soultest <void|blood|echo>

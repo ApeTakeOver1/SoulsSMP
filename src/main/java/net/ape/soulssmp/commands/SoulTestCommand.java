@@ -17,7 +17,7 @@ public class SoulTestCommand implements CommandExecutor {
         }
 
         if (args.length == 0) {
-            player.sendMessage("§8§lSoulTest §7» §7Usage: /soultest <void|blood> | /soultest mana <amount>");
+            player.sendMessage("§8§lSoulTest §7» §7Usage: /soultest <void|blood|echo> | /soultest mana <amount>");
             return true;
         }
 
@@ -34,6 +34,13 @@ public class SoulTestCommand implements CommandExecutor {
             SoulsSMP.getInstance().getManaManager().setMaxMana(player, 100);
             SoulsSMP.getInstance().getManaManager().setMana(player, 100);
             player.sendMessage("§4§lSoulTest §7» §cYou are now bound to the Blood Soul. Mana set to 100/100.");
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("echo")) {
+            SoulsSMP.getInstance().getSoulManager().setSoul(player, SoulType.ECHO);
+            SoulsSMP.getInstance().getResonanceManager().setResonance(player, 0);
+            player.sendMessage("§7§lSoulTest §7» §fYou are now bound to the Echo Soul. Resonance reset to 0.");
             return true;
         }
 

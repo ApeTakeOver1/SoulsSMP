@@ -6,5 +6,8 @@ public enum AbilityType {
     ABYSS_MARK,
     CURSE,
     HEMORRHAGE,
-    BLOOD_HANDS
+    BLOOD_HANDS,
+    FALSE_REFLECTION,
+    VANISHING_STRIKE,
+    ABSOLUTE_ECHO
 }
