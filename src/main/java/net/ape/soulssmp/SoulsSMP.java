@@ -1,6 +1,6 @@
 package net.ape.soulssmp;
 
-import net.ape.soulssmp.managers.AbilityManager;
+import net.ape.soulssmp.managers.core.AbilityManager;
 import net.ape.soulssmp.managers.SilenceManager;
 import net.ape.soulssmp.commands.SoulCommand;
 import net.ape.soulssmp.commands.SoulTabCompleter;
@@ -19,10 +19,10 @@ import net.ape.soulssmp.tasks.RestrictionJumpTask;
 import net.ape.soulssmp.listeners.RestrictionSprintListener;
 import net.ape.soulssmp.listeners.UltimateTriggerListener;
 import net.ape.soulssmp.listeners.VoidCombatListener;
-import net.ape.soulssmp.managers.ManaManager;
+import net.ape.soulssmp.managers.core.ManaManager;
 import net.ape.soulssmp.tasks.ManaTask;
 import net.ape.soulssmp.managers.player.PlayerDataManager;
-import net.ape.soulssmp.managers.progression.SoulManager;
+import net.ape.soulssmp.managers.core.SoulManager;
 import net.ape.soulssmp.abilities.blood.ultimate.BloodHands;
 import net.ape.soulssmp.abilities.blood.passive.BloodPassiveTask;
 import net.ape.soulssmp.abilities.blood.active.Curse;

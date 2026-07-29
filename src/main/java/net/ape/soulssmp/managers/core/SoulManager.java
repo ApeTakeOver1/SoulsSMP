@@ -1,4 +1,4 @@
-package net.ape.soulssmp.managers.progression;
+package net.ape.soulssmp.managers.core;
 
 import net.ape.soulssmp.api.SoulType;
 import net.ape.soulssmp.data.PlayerData;

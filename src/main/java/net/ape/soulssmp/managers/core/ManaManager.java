@@ -1,4 +1,4 @@
-package net.ape.soulssmp.managers;
+package net.ape.soulssmp.managers.core;
 
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.data.PlayerData;
