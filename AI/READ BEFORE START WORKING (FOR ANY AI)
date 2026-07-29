@@ -1,0 +1,154 @@
+# SoulsSMP — Project Guide
+
+THIS GUIDE IS OLD SO SOME STUFF MIGHT BE UPDATED SO YOU STILL HAVE TO SCAN THE FILES!
+
+This is a custom Minecraft Paper/Spigot plugin (Java, Gradle project). Read this fully before touching any code — it explains the concept, what's already built, how it's structured, and the conventions to follow.
+
+## The Core Concept
+
+Every player gets bound to one of several unique **Souls**, each a different force of existence. A Soul grants:
+- A **passive trait** that's always active
+- **Mana-based abilities** (2 regular abilities + 1 Ultimate)
+- Eventually, a **weapon Awakening** (binding the Soul into a custom weapon — not built yet)
+- Progression through a **Favor** system (-5 to +5) tied to quests/kills/relics — not built yet
+- A **Resurrection** system: reaching +5 Favor lets you sacrifice your current Soul to become stronger, reroll into a new Soul, gain more max mana, and get permanent buffs (halo, wings). Dying after resurrecting resets Favor to -1 instead of 0, but you keep resurrection status until you die again. — not built yet
+- **Rituals**: physical world locations (ritual plates) required to Awaken weapons or Resurrect. — not built yet
+
+Long-term structure: players climb a Soul Ranking (First Life → Awakened → Reborn → Ascended → Eternal Soul → GOD) through repeated resurrections, each time becoming more unique.
+
+Only **2 of a planned 8 souls** are built right now: **Void** and **Blood**. The rest are undesigned.
+
+## What's Fully Built and Working
+
+### Core framework
+- `SoulManager` — assigns/reads a player's `SoulType` enum (currently `VOID`, `BLOOD`)
+- `PlayerData` / `PlayerDataManager` — holds soul, mana, maxMana, favor, resurrectionCount, awakened flag. **Persists to disk** as YAML at `plugins/SoulsSMP/playerdata/<uuid>.yml`, loaded on join / saved on quit and plugin disable.
+- `ManaManager` — get/set/spend/add mana, respects Creative mode (infinite) and Silence (see below)
+- `ManaTask` — passive regen, +5 mana every 5 seconds (reads as a satisfying chunky tick, not a slow crawl). Skips silenced players entirely.
+- `AbilityManager` — central registry of all abilities. Enforces cooldowns, enforces that an ability's `requiredSoul` matches the caster's actual bound soul, skips cooldowns/mana costs in Creative mode.
+- `Ability` (abstract base class) — every ability has a type, display name, mana cost, cooldown, and a `requiredSoul`. `execute()` returns boolean: true = counted as a real use (start cooldown), false = nothing happened (failed cast, or a multi-phase ability still charging).
+
+### HUD (all via `HudTask`, runs 5x/second)
+- **Mana**: boss bar at top of screen, purple, shows current/max (or ∞ in Creative)
+- **Ultimate**: boss bar, shows cooldown countdown or "READY (Sneak+F)". Label and color swap automatically based on which soul/mode the player is in (e.g. Blood shows "Blood Hands" above 5 hearts, "Puncture" at/below 5 hearts)
+- **Two regular abilities**: shown in the action bar (text just above hotbar), each ability's mana cost is prefixed like `(40) Curse`, doubled and shown correctly if the caster is Silenced. Cooldown shown as a 10-segment colored bar, or a live "Marked (Xs)" / stack-counter display for abilities that don't use traditional cooldowns (Abyss Mark, Hemorrhage).
+- Boss bars are created on join, removed on quit (`HudJoinQuitListener` + `HudManager`)
+
+### Commands
+- `/soul` — shows your own soul, mana, favor, resurrections, awakened status
+- `/soul info` — lists all souls; `/soul info <name>` shows full ability breakdown for that soul
+- `/soul ability1` and `/soul ability2` — **generic slot-based activation**, NOT named per-soul. Slot 1/2 map to whichever 2 abilities belong to your current soul (Void: Void Step / Abyss Mark. Blood: Curse / Hemorrhage). This was changed from the old `/soul ability <name>` syntax — always use ability1/ability2 going forward for any new soul.
+- `/soultest <void|blood>` — dev/testing only, force-assigns a soul + sets mana to 100/100. `/soultest mana <amount>` sets mana directly. Not part of real progression — will eventually be replaced by Rituals.
+- Ultimates are triggered by **Sneak + F** (`PlayerSwapHandItemsEvent`, cancelled so it doesn't actually swap items), NOT a command. `UltimateTriggerListener` checks the player's soul and fires the right ultimate.
+- Tab-completion exists for both `/soul` and `/soultest` via dedicated `TabCompleter` classes — remember to update these if new subcommands/abilities are added.
+
+### Creative Mode rules (apply to every soul)
+- Infinite mana (never depletes, bar always shows full/∞)
+- No cooldowns on any ability
+- Costs that would sacrifice HP (like Blood Hands) are waived entirely in Creative
+
+---
+
+## Void Soul — Complete
+
+**Theme:** space, emptiness, decay.
+
+**Passive** (`VoidPassiveTask`):
+- Below 30% HP: Resistance (visible icon + particles)
+- At full HP: drains nearby (10 block radius) Soul-bound players' mana, 2/tick — **currently drains everyone nearby indiscriminately, no ally/enemy distinction exists yet** (no team/faction system built)
+
+**Ability 1 — Void Step** (`VoidStep.java`):
+- Two-phase: first use *arms* it (spawns a black leather-armor ArmorStand "shadow clone" at the dash destination, posed in a lean-forward dash stance), second use within a 4s window teleports you into that spot with a slash effect. If the window expires, it cancels and despawns the clone.
+- Deals damage to everything in the dash's path (a thin corridor from start to destination), not just movement.
+- 20 mana, 10s cooldown, 6 block distance.
+
+**Ability 2 — Abyss Mark** (`AbyssMark.java`):
+- Costs your **entire current mana pool** to cast (no fixed cost) — no cooldown at all. HUD shows "Marked (Xs)" instead of a cooldown bar.
+- Marks a target (30 block range). Combo system tracked in `VoidMarkManager`: every 3rd hit on the marked target = 1.25x bonus damage (1.5x if they're also Null Field-affected), every 5th hit = mana refund (10, or 20 if Null Field-affected) + reduces Null Field's cooldown (5s, or 10s if affected) + **stuns them only if they were caught by your Null Field**.
+
+**Ultimate — Null Field** (`NullField.java`, Sneak+F):
+- Instant burst (not a lingering zone) — like a camera flash. Anyone within 6 blocks at the moment of activation gets Weakness I + Blindness for 45 seconds, and is flagged "Null Field affected" by the caster for that same duration (`NullFieldManager`), which is what upgrades Abyss Mark's combo bonuses against them.
+- 50 mana, 90s (1:30) cooldown.
+
+---
+
+## Blood Soul — Complete
+
+**Theme:** sacrifice, control, health.
+
+**Passives** (`BloodPassiveTask`, `BloodSenseManager`, `BloodCombatListener`):
+- **Blood Pact**: below 40% HP — Speed II, a real attack-speed attribute boost (not just a potion effect), and 10% lifesteal on your own attacks (25% if boosted by Blood Hands' post-ultimate window).
+- **Blood Sense**: continuously detects other players below 25% HP within 10 blocks. Affected players get: a real glowing outline (`player.setGlowing(true)` + scoreboard team for red color), blood particles, heartbeat sound. The Blood Soul player (the observer) gets a continuously-redrawn dense red ring around **themselves** showing the 10-block detection radius, visible only while they currently have a qualifying target inside it — vanishes the instant the target heals or leaves range (tracked per-observer/per-target pair, not just "is anyone nearby right now," to avoid a stale-glow bug that existed earlier).
+
+**Ability 1 — Curse** (`Curse.java` + `CurseGUI.java` + `CurseGUIListener.java` + `CursePendingManager.java`):
+- 3-second channel: caster is slowed/can't act, ritual particle ring, everyone within 10 blocks gets Darkness.
+- After the channel, locks onto whatever the caster is looking at (20 block range) and rains a red particle "blood cloud" on them (a stationary particle disc hovering above the target with individual raindrop particles falling — NOT falling block entities, that was tried and rejected as looking wrong).
+- **A GUI pops up letting the caster manually pick the effect** (this was changed from a random roll specifically to make testing easier, and the user wants to reuse this GUI pattern for the future Awakening system). A weighted-random method (`rollWeightedEffect`) already exists ready to swap in later: Puppet 25%, Restriction 37.5%, Silence 37.5%.
+  - **Restriction**: no sprint (`RestrictionSprintListener` cancels `PlayerToggleSprintEvent`), can't jump (`RestrictionJumpListener` cancels Paper's `PlayerJumpEvent` — NOT a potion effect hack, that was tried and was buggy), Slowness II. 20s.
+  - **Silence**: cannot regenerate mana at all, abilities cost double mana, gives Darkness. Fully centralized in `SilenceManager` — always applies Darkness + a message when triggered from anywhere (Curse, Sonic Clap, Rupture). 30s.
+  - **Puppet**: restrained within a 5-block circle of the caster (visualized via `RestraintRingTask`, same ring-drawing idea as Blood Sense), hotbar randomized. 20s.
+- 40 mana, 30s cooldown.
+
+**Ability 2 — Hemorrhage** (`Hemorrhage.java` + `HemorrhageManager.java`, resolved in `BloodCombatListener`):
+- Marks a target (20 block range, 30s duration). Every hit builds a stack 1→5, HUD shows a live "●●●○○ 3/5 (Xs)" pip counter instead of a cooldown bar.
+- Stack 2: target starts glowing ("Marked" message). Stack 3: target tethered within a 15-block radius of the caster ("Tethered" message, ring drawn via `RestraintRingTask`, shares the same `RestraintManager` as Puppet). Stack 5: **Rupture** — mark clears, target takes **5 hearts (10 damage) true damage** dealt via direct `setHealth()` change (never `.damage()`, which would re-fire the damage event and cause infinite recursion — this was a real bug that got fixed), knockback, Silence for 5s.
+- 25 mana, 20s cooldown.
+
+**Ultimate — Blood Hands / Puncture** (`BloodHands.java`, Sneak+F):
+- Two entirely different modes sharing one trigger, switching automatically based on the caster's current HP:
+  - **Above 5 hearts → "Blood Hands"**: costs 10 HP (waived in Creative), grants 25% lifesteal for 10s. Fires **exactly one** of two effects (strict either/or, never both):
+    - **Sonic Clap**: hits everyone in a 15-block radius with a flashing/pulsing red ring (shows the boundary over 3 quick pulses) with Blindness + Silence for 15s.
+    - **Control**: only rolls if someone is within 5 blocks (falls back to Sonic Clap otherwise) — grabs up to 2 nearby players and holds them hovering directly in front of the caster, side by side ("two hands presenting them"), immobile but still able to act, taking periodic tick damage like entity cramming, for 10s (`HoldManager` + `HoldTask`).
+  - **At or below 5 hearts → "Puncture"**: completely free (no HP cost), no random branching. Needle count scales with missing hearts: `10 + 2 * (5 - heartsRemaining)` (5 hearts = 10 needles, 0 hearts = 20 needles). **Charges up first** (a growing particle cluster behind the caster over a 2–5 second window scaled by needle count, giving the target time to react/flee), then **all needles release simultaneously** as a converging fan of thin bold red particle lines from behind the caster to the target, dealing 1.0 damage (half a heart) per needle, true damage, all applied in a single health change at release (not staggered).
+- 90s cooldown, shared between both modes.
+
+---
+
+## Package Structure
+
+```
+net.ape.soulssmp
+├── ability/              — Ability, AbilityType, AbilityManager, SilenceManager
+├── command/               — SoulCommand, SoulTestCommand, + their TabCompleters
+├── hud/                    — HudManager, HudTask
+├── listener/               — cross-cutting event listeners (combat, restrictions, join/quit, GUI clicks, ultimate trigger)
+├── mana/                   — ManaManager, ManaTask
+├── player/                 — PlayerData, PlayerDataManager
+├── soul/
+│   ├── SoulManager, SoulType (enum: VOID, BLOOD — ONLY these two exist, do not assume others)
+│   └── types/
+│       ├── voidsoul/       — all Void-specific classes
+│       └── bloodsoul/      — all Blood-specific classes
+```
+
+**Convention: every new Soul gets its own `soul/types/<soulname>/` package** containing all of its abilities, managers, and tasks. Shared/cross-soul systems (like `SilenceManager`, `AbilityManager`) live in the top-level `ability` package since Silence is usable by any soul, not just Blood.
+
+## Coding Conventions To Follow
+
+- **Direct `setHealth()` changes, never `.damage(amount, source)` for scripted/DOT/rupture-style damage.** Passing a damager re-fires `EntityDamageByEntityEvent`, which can recursively re-trigger combat listeners (this caused a real infinite-loop bug with Hemorrhage's rupture). Only use `.damage()` for genuine player-vs-player/mob melee hits that should trigger normal combat listeners once.
+- **True damage** (bypassing armor) = direct `setHealth()` reduction, no `EntityDamageEvent` involved at all.
+- **Chat message prefix format**: `§<color>§l<SoulName> §7» §<color><message>` — e.g. `§4§lBlood §7» §cYou've been Restricted by the Curse.` Void uses `§8`/dark purple-ish tones, Blood uses `§4` (dark red) or `§c`.
+- **Use `ChatColor` enum constants instead of raw `§` escape strings when there's any risk of encoding issues** — a raw `"§4§l"` string literal caused a real bug where `§l` displayed as a literal letter "l" in one case. When in doubt, build formatted prefixes with `ChatColor.DARK_RED.toString() + ChatColor.BOLD + "..."` instead.
+- **Every ability's `execute()` returns boolean** — true only for a genuine full use that should start the cooldown. Multi-phase abilities (like Void Step's arm/execute) return false on the arming phase.
+- **Managers own state, Tasks own repeating logic, Listeners own event reactions.** Don't put persistent state directly in a listener or a one-shot ability class if it needs to be checked from elsewhere — give it a proper Manager (see `RestraintManager`, `SilenceManager`, `HemorrhageManager` as the pattern).
+- **Always give the whole file when replacing, never a partial snippet** — this project has repeatedly broken when only a snippet or "add this line" was given instead of a complete file. Always state clearly which files were touched vs. untouched in a given response.
+- **Ask before assuming a file's contents** — this project has an empty-stub problem: several classes exist as auto-created blank stubs (e.g. `VoidSoul`, `VoidPassive`, `CooldownManager` were all empty at various points). Never assume a file is empty OR that it already contains real logic — ask to see it first if it's relevant and hasn't been shared recently.
+- **Particle-based visuals are the ceiling for now.** The user is actively building custom models in Blockbench (attempted mesh-based, was told Java Edition only supports cuboid models — meshes are Bedrock-only, needs rebuilding as cuboids). Until real models exist, keep visual expectations honest — don't oversell particle effects as more impressive than they'll actually look.
+- **Version caution**: this is a Paper server (confirmed via working `Attribute.MAX_HEALTH`, `PlayerJumpEvent` which is Paper-only, and newer Sound/Particle enum names). Some enum names have changed across versions before (`GENERIC_MAX_HEALTH`→`MAX_HEALTH`, `DAMAGE_RESISTANCE`→`RESISTANCE`) — if something doesn't compile, it's often just a renamed constant, not a logic error.
+
+## What's NOT Built Yet (in rough priority order based on the original design doc)
+
+1. **More souls** (6 remaining, undesigned) — likely next up after Blood is fully polished
+2. **Favor system** (-5 to +5, quests/kills/relics, unlocks at thresholds: +3 unlocks bonus ability, +4 enhances the weapon, +5 unlocks Resurrection)
+3. **Weapon Awakening system** — binding a Soul into a custom weapon with its own model/abilities. The user explicitly wants to reuse the Curse GUI pattern for this (a menu-based choice system).
+4. **Resurrection / rebirth mechanic** — sacrificing current Soul at +5 Favor for a stronger rerolled Soul, mana increase, and permanent buffs (halo at first resurrection, wings/elytra-like flight at second). Dying after resurrecting resets Favor to -1, not 0.
+5. **Ritual system** — physical world plates/structures required to Awaken or Resurrect, soul-specific
+6. **Soul Death rules** — special conditions beyond normal death (boss kills, weapon destruction, execution, lore events) that damage/reset a Soul differently than normal death
+7. **True custom models via Blockbench** (cuboid-rebuilt, likely via Item Display entities or a mod like BetterModel) to replace the current particle-only effects — the "blood hand" visual specifically is planned once modeling is finished
+
+## How the User Wants to Work
+
+- Give full, complete files every time — see conventions above.
+- Confirm test steps after every change (what command to run, what should visually happen).
+- Flag placeholder numbers/assumptions explicitly rather than silently picking values.
+- If a request isn't technically possible as literally described (e.g., true player input control), say so honestly and offer the closest real alternative — don't silently build something different.
