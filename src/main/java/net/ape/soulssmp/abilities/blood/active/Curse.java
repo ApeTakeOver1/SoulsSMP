@@ -42,7 +42,7 @@ public class Curse extends Ability {
 
     // Locked target between "channel finished" and "player picked an effect
     // from the GUI" (formerly CursePendingManager) - read by CurseGUIListener
-    // via SoulsSMP.getInstance().getCurse().
+    // via SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.CURSE, Curse.class).
     private final Map<UUID, LivingEntity> pendingTargets = new HashMap<>();
 
     // Restriction's sprint-block flag (formerly RestrictionManager); the

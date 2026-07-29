@@ -2,7 +2,9 @@ package net.ape.soulssmp.abilities.blood.passive;
 
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.data.PlayerData;
+import net.ape.soulssmp.api.AbilityType;
 import net.ape.soulssmp.api.SoulType;
+import net.ape.soulssmp.abilities.blood.active.Curse;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
@@ -90,7 +92,8 @@ public class BloodPassiveTask extends BukkitRunnable {
             );
         }
 
-        if (SoulsSMP.getInstance().getCurse().isRestricted(player)) {
+        Curse curse = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.CURSE, Curse.class);
+        if (curse.isRestricted(player)) {
             player.getWorld().spawnParticle(
                     Particle.DUST, player.getLocation().add(0, 0.1, 0), 4, 0.3, 0.05, 0.3, 0,
                     new Particle.DustOptions(Color.fromRGB(150, 30, 30), 1.0f)

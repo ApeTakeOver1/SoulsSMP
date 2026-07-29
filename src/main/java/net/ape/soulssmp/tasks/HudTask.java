@@ -3,8 +3,10 @@ package net.ape.soulssmp.tasks;
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.api.Ability;
 import net.ape.soulssmp.api.AbilityType;
+import net.ape.soulssmp.api.soul.SoulDefinition;
 import net.ape.soulssmp.api.SoulType;
 import net.ape.soulssmp.abilities.blood.ultimate.BloodHands;
+import net.ape.soulssmp.abilities.blood.active.Hemorrhage;
 import net.ape.soulssmp.abilities.voidsoul.active.AbyssMark;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -56,8 +58,8 @@ public class HudTask extends BukkitRunnable {
             return;
         }
 
-        AbilityType ultimateType = soul == SoulType.BLOOD ? AbilityType.BLOOD_HANDS
-                : soul == SoulType.VOID ? AbilityType.NULL_FIELD : null;
+        SoulDefinition soulDefinition = SoulsSMP.getInstance().getSoulRegistry().get(soul);
+        AbilityType ultimateType = soulDefinition != null ? soulDefinition.getUltimate() : null;
 
         if (ultimateType == null) {
             ultimateBar.setTitle("§7No Ultimate");
@@ -168,7 +170,7 @@ public class HudTask extends BukkitRunnable {
             return costPrefix + "§5§lAbyss Mark §7» §aREADY";
         }
 
-        AbyssMark abyssMark = SoulsSMP.getInstance().getAbyssMark();
+        AbyssMark abyssMark = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.ABYSS_MARK, AbyssMark.class);
         int hitCount = abyssMark.getHitCount(player.getUniqueId());
         int remainingMarkSeconds = abyssMark.getRemainingMarkSeconds(player.getUniqueId());
 
@@ -185,7 +187,8 @@ public class HudTask extends BukkitRunnable {
     }
 
     private String buildHemorrhageBar(Player player) {
-        int[] status = SoulsSMP.getInstance().getHemorrhage().getCurrentMarkStatus(player.getUniqueId());
+        int[] status = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.HEMORRHAGE, Hemorrhage.class)
+                .getCurrentMarkStatus(player.getUniqueId());
 
         if (status == null) {
             return buildCooldownBar(player, AbilityType.HEMORRHAGE, "Hemorrhage", "§4");

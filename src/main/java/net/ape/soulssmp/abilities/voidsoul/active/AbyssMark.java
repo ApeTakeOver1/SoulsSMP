@@ -21,7 +21,8 @@ public class AbyssMark extends Ability {
     private static final long ACTION_BAR_OVERRIDE_MILLIS = 1500L;
 
     // Mark/combo tracking (formerly VoidMarkManager) - AbyssMark owns this state;
-    // VoidCombatListener and HudTask read it via SoulsSMP.getInstance().getAbyssMark().
+    // VoidCombatListener and HudTask read it via
+    // SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.ABYSS_MARK, AbyssMark.class).
     private static class MarkData {
         final UUID markedBy;
         int hitCount;

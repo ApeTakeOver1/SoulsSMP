@@ -25,6 +25,10 @@ public class AbilityManager {
         return registeredAbilities.get(type);
     }
 
+    public <T extends Ability> T getAs(AbilityType type, Class<T> clazz) {
+        return clazz.cast(registeredAbilities.get(type));
+    }
+
     public void useAbility(Player player, AbilityType type) {
         Ability ability = registeredAbilities.get(type);
 

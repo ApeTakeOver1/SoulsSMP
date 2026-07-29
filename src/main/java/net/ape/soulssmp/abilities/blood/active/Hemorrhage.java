@@ -20,7 +20,8 @@ public class Hemorrhage extends Ability {
     private static final int MARK_DURATION_SECONDS = 30;
 
     // Mark/stack tracking (formerly HemorrhageManager) - Hemorrhage owns this
-    // state; BloodCombatListener and HudTask read it via SoulsSMP.getInstance().getHemorrhage().
+    // state; BloodCombatListener and HudTask read it via
+    // SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.HEMORRHAGE, Hemorrhage.class).
     public static class MarkData {
         public final UUID markedBy;
         public int stacks;

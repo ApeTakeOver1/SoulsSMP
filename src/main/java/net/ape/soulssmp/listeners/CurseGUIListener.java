@@ -1,6 +1,7 @@
 package net.ape.soulssmp.listeners;
 
 import net.ape.soulssmp.SoulsSMP;
+import net.ape.soulssmp.api.AbilityType;
 import net.ape.soulssmp.abilities.blood.active.Curse;
 import net.ape.soulssmp.gui.CurseGUI;
 import org.bukkit.entity.LivingEntity;
@@ -20,7 +21,7 @@ public class CurseGUIListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         if (event.getCurrentItem() == null) return;
 
-        Curse curse = SoulsSMP.getInstance().getCurse();
+        Curse curse = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.CURSE, Curse.class);
 
         LivingEntity target = curse.getPendingTarget(player.getUniqueId());
         if (target == null) {

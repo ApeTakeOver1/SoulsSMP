@@ -28,7 +28,8 @@ public class BloodHands extends Ability {
     public static final double PUNCTURE_HP_THRESHOLD = 10.0;
 
     // Control's "held in place" tracking (formerly HoldManager) - BloodHands
-    // owns this state; HoldTask reads/ticks it via SoulsSMP.getInstance().getBloodHands().
+    // owns this state; HoldTask reads/ticks it via
+    // SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.BLOOD_HANDS, BloodHands.class).
     public static class HoldData {
         public final Location anchor;
         public final long expiresAt;

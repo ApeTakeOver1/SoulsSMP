@@ -1,8 +1,7 @@
 package net.ape.soulssmp.listeners;
 
 import net.ape.soulssmp.SoulsSMP;
-import net.ape.soulssmp.api.AbilityType;
-import net.ape.soulssmp.api.SoulType;
+import net.ape.soulssmp.api.soul.SoulDefinition;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
@@ -20,13 +19,11 @@ public class UltimateTriggerListener implements Listener {
         event.setCancelled(true);
 
         var data = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(event.getPlayer());
+        if (data.getSoul() == null) return;
 
-        if (data.getSoul() == SoulType.VOID) {
-            SoulsSMP.getInstance().getAbilityManager().useAbility(event.getPlayer(), AbilityType.NULL_FIELD);
-        } else if (data.getSoul() == SoulType.BLOOD) {
-            SoulsSMP.getInstance().getAbilityManager().useAbility(event.getPlayer(), AbilityType.BLOOD_HANDS);
-        } else if (data.getSoul() == SoulType.ECHO) {
-            SoulsSMP.getInstance().getAbilityManager().useAbility(event.getPlayer(), AbilityType.ABSOLUTE_ECHO);
-        }
+        SoulDefinition def = SoulsSMP.getInstance().getSoulRegistry().get(data.getSoul());
+        if (def == null || def.getUltimate() == null) return;
+
+        SoulsSMP.getInstance().getAbilityManager().useAbility(event.getPlayer(), def.getUltimate());
     }
 }

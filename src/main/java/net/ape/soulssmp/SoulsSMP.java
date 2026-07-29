@@ -23,6 +23,8 @@ import net.ape.soulssmp.managers.core.ManaManager;
 import net.ape.soulssmp.tasks.ManaTask;
 import net.ape.soulssmp.managers.player.PlayerDataManager;
 import net.ape.soulssmp.managers.core.SoulManager;
+import net.ape.soulssmp.api.soul.SoulRegistry;
+import net.ape.soulssmp.api.soul.SoulDefinitions;
 import net.ape.soulssmp.abilities.blood.ultimate.BloodHands;
 import net.ape.soulssmp.abilities.blood.passive.BloodPassiveTask;
 import net.ape.soulssmp.abilities.blood.active.Curse;
@@ -45,9 +47,8 @@ public final class SoulsSMP extends JavaPlugin {
     private PlayerDataManager playerDataManager;
     private SoulManager soulManager;
     private ManaManager manaManager;
-    private AbyssMark abyssMark;
-    private NullField nullField;
     private AbilityManager abilityManager;
+    private SoulRegistry soulRegistry;
     private HudManager hudManager;
     private StunManager stunManager;
     private ResonanceManager resonanceManager;
@@ -55,9 +56,6 @@ public final class SoulsSMP extends JavaPlugin {
     private BloodPassiveTask bloodPassiveTask;
     private SilenceManager silenceManager;
     private RestraintManager restraintManager;
-    private Curse curse;
-    private Hemorrhage hemorrhage;
-    private BloodHands bloodHands;
     private BloodCombatListener bloodCombatListener;
 
     @Override
@@ -77,17 +75,10 @@ public final class SoulsSMP extends JavaPlugin {
         bloodCombatListener = new BloodCombatListener();
 
         voidStep = new VoidStep();
-        abilityManager.registerAbility(voidStep);
-        abyssMark = new AbyssMark();
-        abilityManager.registerAbility(abyssMark);
-        nullField = new NullField();
-        abilityManager.registerAbility(nullField);
-        curse = new Curse();
-        abilityManager.registerAbility(curse);
-        hemorrhage = new Hemorrhage();
-        abilityManager.registerAbility(hemorrhage);
-        bloodHands = new BloodHands();
-        abilityManager.registerAbility(bloodHands);
+        soulRegistry = SoulDefinitions.build(abilityManager,
+                voidStep, new AbyssMark(), new NullField(), new VoidPassiveTask(),
+                new Curse(), new Hemorrhage(), new BloodHands(), bloodPassiveTask,
+                new EchoPassiveTask(), new ResonanceTask());
 
         getLogger().info("=================================");
         getLogger().info("Souls SMP has awakened!");
@@ -138,16 +129,12 @@ public final class SoulsSMP extends JavaPlugin {
         return manaManager;
     }
 
-    public AbyssMark getAbyssMark() {
-        return abyssMark;
-    }
-
-    public NullField getNullField() {
-        return nullField;
-    }
-
     public AbilityManager getAbilityManager() {
         return abilityManager;
+    }
+
+    public SoulRegistry getSoulRegistry() {
+        return soulRegistry;
     }
 
     public HudManager getHudManager() {
@@ -168,18 +155,6 @@ public final class SoulsSMP extends JavaPlugin {
 
     public RestraintManager getRestraintManager() {
         return restraintManager;
-    }
-
-    public Curse getCurse() {
-        return curse;
-    }
-
-    public Hemorrhage getHemorrhage() {
-        return hemorrhage;
-    }
-
-    public BloodHands getBloodHands() {
-        return bloodHands;
     }
 
     public BloodCombatListener getBloodCombatListener() {
@@ -206,13 +181,15 @@ public final class SoulsSMP extends JavaPlugin {
     private void startTasks() {
         new HudTask().runTaskTimer(this, 0L, 4L);
         new ManaTask().runTaskTimer(this, 100L, 100L);
-        new VoidPassiveTask().runTaskTimer(this, 0L, 10L);
-        new EchoPassiveTask().runTaskTimer(this, 0L, 5L);
-        new ResonanceTask().runTaskTimer(this, 20L, 20L);
-        bloodPassiveTask.runTaskTimer(this, 0L, 10L);
         new RestraintTask().runTaskTimer(this, 0L, 5L);
         new HoldTask().runTaskTimer(this, 0L, 5L);
         new RestraintRingTask().runTaskTimer(this, 0L, 4L);
         new RestrictionJumpTask().runTaskTimer(this, 0L, 1L);
+
+        for (var definition : soulRegistry.all()) {
+            for (var passive : definition.getPassives()) {
+                passive.task().runTaskTimer(this, passive.delay(), passive.period());
+            }
+        }
     }
 }

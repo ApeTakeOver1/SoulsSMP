@@ -1,6 +1,7 @@
 package net.ape.soulssmp.tasks;
 
 import net.ape.soulssmp.SoulsSMP;
+import net.ape.soulssmp.api.AbilityType;
 import net.ape.soulssmp.abilities.blood.ultimate.BloodHands;
 import org.bukkit.Bukkit;
 import org.bukkit.Particle;
@@ -20,7 +21,7 @@ public class HoldTask extends BukkitRunnable {
         tickCounter++;
         boolean dealDamageThisTick = tickCounter % 4 == 0; // every 1s (task runs every 5 ticks)
 
-        BloodHands bloodHands = SoulsSMP.getInstance().getBloodHands();
+        BloodHands bloodHands = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.BLOOD_HANDS, BloodHands.class);
         Set<UUID> toRemove = new HashSet<>();
 
         for (var entry : new java.util.HashMap<>(bloodHands.getAllHolds()).entrySet()) {

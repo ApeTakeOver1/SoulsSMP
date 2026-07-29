@@ -1,5 +1,6 @@
 package net.ape.soulssmp.commands;
 
+import net.ape.soulssmp.api.SoulType;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
@@ -23,9 +24,9 @@ public class SoulTabCompleter implements TabCompleter {
                 options.add("mana");
             }
         } else if (args.length == 2 && (args[0].equalsIgnoreCase("info") || args[0].equalsIgnoreCase("set"))) {
-            options.add("void");
-            options.add("blood");
-            options.add("echo");
+            for (SoulType type : SoulType.values()) {
+                options.add(type.name().toLowerCase());
+            }
         }
 
         return filterMatches(options, args.length == 0 ? "" : args[args.length - 1]);

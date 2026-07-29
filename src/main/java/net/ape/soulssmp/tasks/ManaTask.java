@@ -1,6 +1,8 @@
 package net.ape.soulssmp.tasks;
 
 import net.ape.soulssmp.SoulsSMP;
+import net.ape.soulssmp.api.AbilityType;
+import net.ape.soulssmp.abilities.voidsoul.ultimate.NullField;
 import net.ape.soulssmp.data.PlayerData;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -24,7 +26,8 @@ public class ManaTask extends BukkitRunnable {
                 continue; // Silenced - no mana regeneration at all
             }
 
-            int manaPerTick = SoulsSMP.getInstance().getNullField().isManaBoostActive(player.getUniqueId())
+            int manaPerTick = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.NULL_FIELD, NullField.class)
+                    .isManaBoostActive(player.getUniqueId())
                     ? NULL_FIELD_BOOSTED_MANA_PER_TICK
                     : MANA_PER_TICK;
 

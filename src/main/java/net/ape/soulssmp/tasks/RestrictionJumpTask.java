@@ -1,6 +1,8 @@
 package net.ape.soulssmp.tasks;
 
 import net.ape.soulssmp.SoulsSMP;
+import net.ape.soulssmp.api.AbilityType;
+import net.ape.soulssmp.abilities.blood.active.Curse;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -23,8 +25,10 @@ public class RestrictionJumpTask extends BukkitRunnable {
 
     @Override
     public void run() {
+        Curse curse = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.CURSE, Curse.class);
+
         for (Player player : Bukkit.getOnlinePlayers()) {
-            boolean isRestricted = SoulsSMP.getInstance().getCurse().isRestricted(player);
+            boolean isRestricted = curse.isRestricted(player);
             boolean onGroundNow = player.isOnGround();
             Boolean onGroundBefore = wasOnGround.get(player.getUniqueId());
 

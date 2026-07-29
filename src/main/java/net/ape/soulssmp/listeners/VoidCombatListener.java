@@ -40,7 +40,8 @@ public class VoidCombatListener implements Listener {
         if (attackerData.getSoul() != SoulType.VOID) return;
 
         // Anyone affected by Null Field takes 1.5x more damage from the caster, on every hit
-        if (SoulsSMP.getInstance().getNullField().isAffected(attacker.getUniqueId(), target.getUniqueId())) {
+        if (SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.NULL_FIELD, NullField.class)
+                .isAffected(attacker.getUniqueId(), target.getUniqueId())) {
             event.setDamage(event.getDamage() * NULL_FIELD_DAMAGE_MULTIPLIER);
         }
 
@@ -54,13 +55,13 @@ public class VoidCombatListener implements Listener {
     }
 
     private void handleAbyssMarkCombo(Player attacker, LivingEntity target, EntityDamageByEntityEvent event) {
-        AbyssMark abyssMark = SoulsSMP.getInstance().getAbyssMark();
+        AbyssMark abyssMark = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.ABYSS_MARK, AbyssMark.class);
         if (!abyssMark.isMarkedBy(target, attacker.getUniqueId())) return;
 
         int hitCount = abyssMark.registerHit(target, attacker.getUniqueId());
         if (hitCount == -1) return; // Mark expired or not marked by this attacker
 
-        NullField nullField = SoulsSMP.getInstance().getNullField();
+        NullField nullField = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.NULL_FIELD, NullField.class);
         boolean isNullFieldAffected = nullField.isAffected(attacker.getUniqueId(), target.getUniqueId());
 
         if (hitCount % 3 == 0) {

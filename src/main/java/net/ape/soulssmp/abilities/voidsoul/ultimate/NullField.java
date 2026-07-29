@@ -23,7 +23,7 @@ public class NullField extends Ability {
 
     // "Null Field affected" + mana boost tracking (formerly NullFieldManager) -
     // NullField owns this state; VoidCombatListener and ManaTask read it via
-    // SoulsSMP.getInstance().getNullField().
+    // SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.NULL_FIELD, NullField.class).
     private static class AffectedData {
         long expiresAt;
 

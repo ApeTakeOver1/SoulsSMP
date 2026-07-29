@@ -2,6 +2,7 @@ package net.ape.soulssmp.listeners;
 
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.data.PlayerData;
+import net.ape.soulssmp.api.AbilityType;
 import net.ape.soulssmp.api.SoulType;
 import net.ape.soulssmp.abilities.blood.passive.BloodPassiveTask;
 import net.ape.soulssmp.abilities.blood.active.Hemorrhage;
@@ -81,7 +82,7 @@ public class BloodCombatListener implements Listener {
     }
 
     private void handleHemorrhageStacks(Player attacker, LivingEntity target) {
-        Hemorrhage hemorrhage = SoulsSMP.getInstance().getHemorrhage();
+        Hemorrhage hemorrhage = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.HEMORRHAGE, Hemorrhage.class);
         if (!hemorrhage.isMarkedBy(target.getUniqueId(), attacker.getUniqueId())) return;
 
         int stacks = hemorrhage.registerHit(target.getUniqueId(), attacker.getUniqueId());
