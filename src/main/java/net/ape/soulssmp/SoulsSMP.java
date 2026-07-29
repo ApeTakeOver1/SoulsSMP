@@ -4,8 +4,6 @@ import net.ape.soulssmp.managers.AbilityManager;
 import net.ape.soulssmp.managers.SilenceManager;
 import net.ape.soulssmp.commands.SoulCommand;
 import net.ape.soulssmp.commands.SoulTabCompleter;
-import net.ape.soulssmp.commands.SoulTestCommand;
-import net.ape.soulssmp.commands.SoulTestTabCompleter;
 import net.ape.soulssmp.managers.HudManager;
 import net.ape.soulssmp.managers.StunManager;
 import net.ape.soulssmp.managers.echosoul.ResonanceManager;
@@ -203,8 +201,6 @@ public final class SoulsSMP extends JavaPlugin {
     private void registerCommands() {
         getCommand("soul").setExecutor(new SoulCommand());
         getCommand("soul").setTabCompleter(new SoulTabCompleter());
-        getCommand("soultest").setExecutor(new SoulTestCommand());
-        getCommand("soultest").setTabCompleter(new SoulTestTabCompleter());
     }
 
     private void startTasks() {

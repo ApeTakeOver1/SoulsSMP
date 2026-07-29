@@ -24,22 +24,16 @@ public class SoulCommand implements CommandExecutor {
             return true;
         }
 
-        if (args[0].equalsIgnoreCase("ability1")) {
-            useMappedAbility(player, 1);
-            return true;
+        switch (args[0].toLowerCase()) {
+            case "ability1" -> useMappedAbility(player, 1);
+            case "ability2" -> useMappedAbility(player, 2);
+            case "info" -> handleInfo(player, args);
+            case "set" -> handleSet(player, args);
+            case "mana" -> handleMana(player, args);
+            default -> player.sendMessage("§8§lSoul §7» §cUnknown subcommand. Try §f/soul§7, §f/soul info§7, " +
+                    "§f/soul ability1§7, §f/soul ability2§7, §f/soul set§7, or §f/soul mana");
         }
 
-        if (args[0].equalsIgnoreCase("ability2")) {
-            useMappedAbility(player, 2);
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase("info")) {
-            handleInfo(player, args);
-            return true;
-        }
-
-        player.sendMessage("§8§lSoul §7» §cUnknown subcommand. Try §f/soul§7, §f/soul info§7, §f/soul ability1§7, or §f/soul ability2");
         return true;
     }
 
@@ -59,6 +53,57 @@ public class SoulCommand implements CommandExecutor {
         }
 
         SoulsSMP.getInstance().getAbilityManager().useAbility(player, type);
+    }
+
+    private void handleSet(Player player, String[] args) {
+        if (!player.isOp()) {
+            player.sendMessage("§8§lSoul §7» §cYou don't have permission to do that.");
+            return;
+        }
+
+        if (args.length < 2) {
+            player.sendMessage("§8§lSoul §7» §7Usage: /soul set <void|blood|echo>");
+            return;
+        }
+
+        SoulType type;
+        try {
+            type = SoulType.valueOf(args[1].toUpperCase());
+        } catch (IllegalArgumentException e) {
+            player.sendMessage("§8§lSoul §7» §cUnknown soul: " + args[1]);
+            return;
+        }
+
+        SoulsSMP.getInstance().getSoulManager().setSoul(player, type);
+
+        if (type == SoulType.ECHO) {
+            SoulsSMP.getInstance().getResonanceManager().setResonance(player, 0);
+            player.sendMessage("§8§lSoul §7» §fYou are now bound to the Echo Soul. Resonance reset to 0.");
+        } else {
+            SoulsSMP.getInstance().getManaManager().setMaxMana(player, 100);
+            SoulsSMP.getInstance().getManaManager().setMana(player, 100);
+            player.sendMessage("§8§lSoul §7» §fYou are now bound to the " + formatSoulName(type) + ". Mana set to 100/100.");
+        }
+    }
+
+    private void handleMana(Player player, String[] args) {
+        if (!player.isOp()) {
+            player.sendMessage("§8§lSoul §7» §cYou don't have permission to do that.");
+            return;
+        }
+
+        if (args.length < 2) {
+            player.sendMessage("§8§lSoul §7» §7Usage: /soul mana <amount>");
+            return;
+        }
+
+        try {
+            int amount = Integer.parseInt(args[1]);
+            SoulsSMP.getInstance().getManaManager().setMana(player, amount);
+            player.sendMessage("§8§lSoul §7» §fMana set to " + amount + ".");
+        } catch (NumberFormatException e) {
+            player.sendMessage("§8§lSoul §7» §cThat's not a number.");
+        }
     }
 
     private void showSelfInfo(Player player) {

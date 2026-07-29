@@ -17,7 +17,12 @@ public class SoulTabCompleter implements TabCompleter {
             options.add("ability1");
             options.add("ability2");
             options.add("info");
-        } else if (args.length == 2 && args[0].equalsIgnoreCase("info")) {
+
+            if (sender.isOp()) {
+                options.add("set");
+                options.add("mana");
+            }
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("info") || args[0].equalsIgnoreCase("set"))) {
             options.add("void");
             options.add("blood");
             options.add("echo");

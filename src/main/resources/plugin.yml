@@ -10,7 +10,4 @@ authors: [ApeTakeOver, random_revilo]
 commands:
   soul:
     description: Access your Soul abilities
-    usage: /soul <ability>
-  soultest:
-    description: TEMP - force-assign a soul and mana for testing
-    usage: /soultest <void|blood|echo>
+    usage: /soul <ability1|ability2|info|set|mana>
