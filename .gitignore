@@ -19,3 +19,6 @@ hs_err_pid*
 
 # Common working directory
 run
+/gradle/wrapper/gradle-wrapper.jar
+/gradle/gradle/wrapper/gradle-wrapper.properties
+/gradle/wrapper/gradle-wrapper.properties

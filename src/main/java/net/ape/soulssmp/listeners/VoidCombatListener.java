@@ -14,8 +14,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 
 public class VoidCombatListener implements Listener {
@@ -27,7 +25,7 @@ public class VoidCombatListener implements Listener {
     private static final int ABYSS_MARK_NULL_FIELD_MANA_REFUND = 20;
     private static final int ABYSS_MARK_NULL_FIELD_COOLDOWN_REDUCTION = 5;
     private static final int ABYSS_MARK_NULL_FIELD_COOLDOWN_REDUCTION_BOOSTED = 10;
-    private static final int ABYSS_MARK_STUN_DURATION_TICKS = 40; // 2 seconds
+    private static final int ABYSS_MARK_STUN_DURATION_TICKS = 14; // 0.7 seconds
     private static final int MANA_ON_NORMAL_ATTACK_AMOUNT = 5; // Mana gained per normal hit on another player
     private static final int MANA_ON_CRIT_ATTACK_AMOUNT = 10; // Mana gained per critical hit on another player
     private static final long ACTION_BAR_OVERRIDE_MILLIS = 1500L;
@@ -82,10 +80,8 @@ public class VoidCombatListener implements Listener {
                     }
                 }.runTaskLater(SoulsSMP.getInstance(), i * 3L); // 3 ticks delay between slashes
             }
-            SoulsSMP.getInstance().getHudManager().showActionBarOverride(attacker, VOID_PREFIX + "Combo Slash!", ACTION_BAR_OVERRIDE_MILLIS);
-        }
+            SoulsSMP.getInstance().getHudManager().showActionBarOverride(attacker, VOID_PREFIX + "Combo Strike!", ACTION_BAR_OVERRIDE_MILLIS);
 
-        if (hitCount % 5 == 0) {
             // Mana refund
             int manaRefund = isNullFieldAffected ? ABYSS_MARK_NULL_FIELD_MANA_REFUND : ABYSS_MARK_MANA_REFUND;
             SoulsSMP.getInstance().getManaManager().addMana(attacker, manaRefund);
@@ -95,11 +91,17 @@ public class VoidCombatListener implements Listener {
             int cooldownReduction = isNullFieldAffected ? ABYSS_MARK_NULL_FIELD_COOLDOWN_REDUCTION_BOOSTED : ABYSS_MARK_NULL_FIELD_COOLDOWN_REDUCTION;
             SoulsSMP.getInstance().getAbilityManager().reduceCooldown(attacker, AbilityType.NULL_FIELD, cooldownReduction);
             SoulsSMP.getInstance().getHudManager().showActionBarOverride(attacker, VOID_PREFIX + "Null Field Cooldown Reduced!", ACTION_BAR_OVERRIDE_MILLIS);
+        }
 
+        if (hitCount % 5 == 0) {
             // Stun if Null Field affected
             if (isNullFieldAffected && target instanceof Player targetPlayer) {
-                targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, ABYSS_MARK_STUN_DURATION_TICKS, 5)); // Strong slow
-                targetPlayer.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, ABYSS_MARK_STUN_DURATION_TICKS, 200)); // Prevent jumping (high amplifier for jump boost makes them unable to jump)
+                // StunManager cancels PlayerMoveEvent outright for a true full stop,
+                // instead of approximating one with Slowness (which only scales speed
+                // down and never actually reaches zero, and does nothing to jumping).
+                SoulsSMP.getInstance().getStunManager().stun(targetPlayer, ABYSS_MARK_STUN_DURATION_TICKS);
+                targetPlayer.getWorld().playSound(targetPlayer.getLocation(), Sound.BLOCK_CHAIN_HIT, 1.0f, 0.8f);
+                attacker.playSound(attacker.getLocation(), Sound.BLOCK_CHAIN_HIT, 1.0f, 0.8f);
                 SoulsSMP.getInstance().getHudManager().showActionBarOverride(targetPlayer,
                         ChatColor.DARK_GRAY.toString() + ChatColor.BOLD + "STUNNED " + ChatColor.GRAY + "» " + ChatColor.RED + "You were stunned by Abyss Mark!", ACTION_BAR_OVERRIDE_MILLIS);
                 SoulsSMP.getInstance().getHudManager().showActionBarOverride(attacker, VOID_PREFIX + "Target Stunned!", ACTION_BAR_OVERRIDE_MILLIS);

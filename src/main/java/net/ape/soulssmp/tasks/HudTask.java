@@ -162,26 +162,22 @@ public class HudTask extends BukkitRunnable {
     }
 
     private String buildAbyssMarkBar(Player player) {
-        String costPrefix = "§7(§fALL§7) "; // Abyss Mark costs all current mana
+        Ability ability = SoulsSMP.getInstance().getAbilityManager().getAbility(AbilityType.ABYSS_MARK);
+        int displayCost = ability != null ? getDisplayCost(player, ability.getManaCost()) : 75;
+        String costPrefix = "§7(§f" + displayCost + "§7) ";
 
         if (player.getGameMode() == GameMode.CREATIVE) {
             return costPrefix + "§5§lAbyss Mark §7» §aREADY";
         }
 
         AbyssMark abyssMark = SoulsSMP.getInstance().getAbyssMark();
-        int hitCount = abyssMark.getHitCount(player.getUniqueId());
         int remainingMarkSeconds = abyssMark.getRemainingMarkSeconds(player.getUniqueId());
 
         if (remainingMarkSeconds <= 0) {
             return costPrefix + "§5§lAbyss Mark §7» §aREADY";
         }
 
-        StringBuilder pips = new StringBuilder();
-        for (int i = 1; i <= 5; i++) { // Max 5 hits for combo
-            pips.append(i <= hitCount ? "§d●" : "§8●");
-        }
-
-        return costPrefix + "§5§lAbyss Mark §7» " + pips + " §7" + hitCount + "/5 §7(" + remainingMarkSeconds + "s)";
+        return costPrefix + "§5§lAbyss Mark §7» §dMarked §7(" + remainingMarkSeconds + "s)";
     }
 
     private String buildHemorrhageBar(Player player) {

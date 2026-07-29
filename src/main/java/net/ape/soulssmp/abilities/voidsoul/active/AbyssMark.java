@@ -4,7 +4,6 @@ import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.api.Ability;
 import net.ape.soulssmp.api.AbilityType;
 import net.ape.soulssmp.api.SoulType;
-import org.bukkit.GameMode;
 import org.bukkit.ChatColor;
 import org.bukkit.Particle;
 import org.bukkit.entity.LivingEntity;
@@ -39,7 +38,7 @@ public class AbyssMark extends Ability {
     private final Map<UUID, UUID> markedTargetByCaster = new HashMap<>(); // casterId -> targetId
 
     public AbyssMark() {
-        super(AbilityType.ABYSS_MARK, "Abyss Mark", 0, 0, SoulType.VOID);
+        super(AbilityType.ABYSS_MARK, "Abyss Mark", 75, 0, SoulType.VOID);
     }
 
     @Override
@@ -52,14 +51,10 @@ public class AbyssMark extends Ability {
             return false;
         }
 
-        if (player.getGameMode() != GameMode.CREATIVE) {
-            int currentMana = SoulsSMP.getInstance().getManaManager().getMana(player);
-            if (currentMana <= 0) {
-                SoulsSMP.getInstance().getHudManager().showActionBarOverride(player,
-                        ChatColor.DARK_PURPLE + "Abyss Mark: " + ChatColor.RED + "You have no mana to mark with.", ACTION_BAR_OVERRIDE_MILLIS);
-                return false;
-            }
-            SoulsSMP.getInstance().getManaManager().setMana(player, 0);
+        if (!SoulsSMP.getInstance().getManaManager().spendMana(player, getManaCost())) {
+            SoulsSMP.getInstance().getHudManager().showActionBarOverride(player,
+                    ChatColor.DARK_PURPLE + "Abyss Mark: " + ChatColor.RED + "Not enough mana (" + getManaCost() + ").", ACTION_BAR_OVERRIDE_MILLIS);
+            return false;
         }
 
         applyMark(target, player.getUniqueId(), MARK_DURATION_SECONDS);
@@ -146,28 +141,5 @@ public class AbyssMark extends Ability {
         }
 
         return (int) (remainingMillis / 1000) + 1;
-    }
-
-    /**
-     * Returns the current hit count for the target marked by the given caster,
-     * or 0 if no target is marked or the mark has expired.
-     */
-    public int getHitCount(UUID casterId) {
-        UUID targetId = markedTargetByCaster.get(casterId);
-        if (targetId == null) return 0;
-
-        MarkData data = marks.get(targetId);
-        if (data == null) {
-            markedTargetByCaster.remove(casterId);
-            return 0;
-        }
-
-        if (System.currentTimeMillis() > data.expiresAt) {
-            marks.remove(targetId);
-            markedTargetByCaster.remove(casterId);
-            return 0;
-        }
-
-        return data.hitCount;
     }
 }
