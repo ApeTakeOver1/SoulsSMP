@@ -119,6 +119,21 @@ public class AbyssMark extends Ability {
     }
 
     /**
+     * Returns the combo hit count on the mark this caster currently has
+     * active on their target, or 0 if they have no active mark.
+     * Used by the HUD to show combo pips.
+     */
+    public int getHitCount(UUID casterId) {
+        UUID targetId = markedTargetByCaster.get(casterId);
+        if (targetId == null) return 0;
+
+        MarkData data = marks.get(targetId);
+        if (data == null) return 0;
+
+        return data.hitCount;
+    }
+
+    /**
      * Returns how many seconds are left on the mark this caster currently
      * has active on their target, or 0 if they have no active mark.
      * Used by the HUD to show mark duration instead of a cooldown.

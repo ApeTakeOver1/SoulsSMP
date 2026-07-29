@@ -7,7 +7,12 @@ import net.ape.soulssmp.commands.SoulTabCompleter;
 import net.ape.soulssmp.commands.SoulTestCommand;
 import net.ape.soulssmp.commands.SoulTestTabCompleter;
 import net.ape.soulssmp.managers.HudManager;
+import net.ape.soulssmp.managers.StunManager;
+import net.ape.soulssmp.managers.echosoul.ResonanceManager;
+import net.ape.soulssmp.abilities.echo.passive.EchoPassiveTask;
+import net.ape.soulssmp.listeners.EchoCombatListener;
 import net.ape.soulssmp.tasks.HudTask;
+import net.ape.soulssmp.tasks.ResonanceTask;
 import net.ape.soulssmp.listeners.BloodCombatListener;
 import net.ape.soulssmp.listeners.CurseGUIListener;
 import net.ape.soulssmp.listeners.HudJoinQuitListener;
@@ -46,6 +51,8 @@ public final class SoulsSMP extends JavaPlugin {
     private NullField nullField;
     private AbilityManager abilityManager;
     private HudManager hudManager;
+    private StunManager stunManager;
+    private ResonanceManager resonanceManager;
     private VoidStep voidStep;
     private BloodPassiveTask bloodPassiveTask;
     private SilenceManager silenceManager;
@@ -64,6 +71,8 @@ public final class SoulsSMP extends JavaPlugin {
         manaManager = new ManaManager(playerDataManager);
         abilityManager = new AbilityManager();
         hudManager = new HudManager();
+        stunManager = new StunManager();
+        resonanceManager = new ResonanceManager();
         bloodPassiveTask = new BloodPassiveTask();
         silenceManager = new SilenceManager();
         restraintManager = new RestraintManager();
@@ -147,6 +156,14 @@ public final class SoulsSMP extends JavaPlugin {
         return hudManager;
     }
 
+    public StunManager getStunManager() {
+        return stunManager;
+    }
+
+    public ResonanceManager getResonanceManager() {
+        return resonanceManager;
+    }
+
     public SilenceManager getSilenceManager() {
         return silenceManager;
     }
@@ -179,6 +196,8 @@ public final class SoulsSMP extends JavaPlugin {
         getServer().getPluginManager().registerEvents(bloodCombatListener, this);
         getServer().getPluginManager().registerEvents(new RestrictionSprintListener(), this);
         getServer().getPluginManager().registerEvents(new CurseGUIListener(), this);
+        getServer().getPluginManager().registerEvents(stunManager, this);
+        getServer().getPluginManager().registerEvents(new EchoCombatListener(), this);
     }
 
     private void registerCommands() {
@@ -192,6 +211,8 @@ public final class SoulsSMP extends JavaPlugin {
         new HudTask().runTaskTimer(this, 0L, 4L);
         new ManaTask().runTaskTimer(this, 100L, 100L);
         new VoidPassiveTask().runTaskTimer(this, 0L, 10L);
+        new EchoPassiveTask().runTaskTimer(this, 0L, 5L);
+        new ResonanceTask().runTaskTimer(this, 20L, 20L);
         bloodPassiveTask.runTaskTimer(this, 0L, 10L);
         new RestraintTask().runTaskTimer(this, 0L, 5L);
         new HoldTask().runTaskTimer(this, 0L, 5L);
