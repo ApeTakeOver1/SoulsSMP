@@ -28,9 +28,9 @@ public final class SoulDefinitions {
     }
 
     public static SoulRegistry build(AbilityManager abilityManager,
-                                      VoidStep voidStep, AbyssMark abyssMark, NullField nullField, VoidPassiveTask voidPassiveTask,
-                                      Curse curse, Hemorrhage hemorrhage, BloodHands bloodHands, BloodPassiveTask bloodPassiveTask,
-                                      EchoPassiveTask echoPassiveTask, ResonanceTask resonanceTask) {
+                                     VoidStep voidStep, AbyssMark abyssMark, NullField nullField, VoidPassiveTask voidPassiveTask,
+                                     Curse curse, Hemorrhage hemorrhage, BloodHands bloodHands, BloodPassiveTask bloodPassiveTask,
+                                     EchoPassiveTask echoPassiveTask, ResonanceTask resonanceTask) {
         SoulRegistry registry = new SoulRegistry();
 
         registry.register(SoulDefinition.builder(SoulType.VOID, "Void Soul", "Space, emptiness, decay")
@@ -49,7 +49,7 @@ public final class SoulDefinitions {
                         "§7 Arms a short dash, use again to teleport + slash everything in the path",
                         "",
                         "§f§lAbility 2 §7(/soul ability2) - Abyss Mark:",
-                        "§7 Costs all your mana - marks a target for combo bonuses",
+                        "§7 Marks a target - builds a stack on every hit, caps at 5",
                         "",
                         "§f§lNull Field §7(Sneak + F, Ultimate):",
                         "§7 Instant burst - weakens caught enemies for 45s"
@@ -92,10 +92,10 @@ public final class SoulDefinitions {
                         "§7 - Speed II always, Speed III once Resonance rises above 0%",
                         "§7 - Immune to Warden targeting and Sonic Boom damage",
                         "§7 - Resonance rises from combat and nearby explosions, drains when out of combat",
-                        "§7 - §f0-25% Echo§7: extra Resonance on hit, fake hit sounds",
-                        "§7 - §f25-50% Distorted Echo§7: slight flicker, quiet footsteps, hidden nametag",
-                        "§7 - §f50-75% Lost Signal§7: heavier flicker, illusion footsteps + fake swings",
-                        "§7 - §f75-100% Perfect Echo§7: fully invisible, afterimages, briefly revealed on attack",
+                        "§7 - §f0-25% Echo§7: extra Resonance from attacking players or mobs",
+                        "§7 - §f25-50% Distorted Echo§7: slight transparency, quiet footsteps, hidden nametag",
+                        "§7 - §f50-75% Lost Signal§7: 50% transparency, illusion footsteps as you move",
+                        "§7 - §f75-100% Perfect Echo§7: faster attacks, more damage, afterimage on every hit",
                         "",
                         "§7§oAbilities (False Reflection, Vanishing Strike, Absolute Echo) are not implemented yet."
                 ))

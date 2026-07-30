@@ -29,9 +29,8 @@ public class BloodCombatListener implements Listener {
     private static final double HEMORRHAGE_TETHER_RADIUS = 15.0;
     private static final int HEMORRHAGE_TETHER_DURATION_SECONDS = 30;
     private static final double RUPTURE_DAMAGE = 10.0;
+    private static final long ACTION_BAR_FEEDBACK_MILLIS = 2500L;
 
-    // Built with ChatColor constants instead of raw "§" strings to avoid
-    // the encoding glitch that turned "§l" into a literal "l" character.
     private static final String HEMO_PREFIX =
             ChatColor.DARK_RED.toString() + ChatColor.BOLD + "Hemorrhage" + ChatColor.GRAY + " » " + ChatColor.RED;
 
@@ -95,6 +94,7 @@ public class BloodCombatListener implements Listener {
                 if (target instanceof Player) {
                     target.setGlowing(true);
                 }
+                showHemorrhageFeedback(attacker, "Target glowing.");
                 attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.8f, 1.0f);
             }
 
@@ -103,8 +103,9 @@ public class BloodCombatListener implements Listener {
                     SoulsSMP.getInstance().getRestraintManager()
                             .addRestraint(targetPlayer.getUniqueId(), attacker.getUniqueId(),
                                     HEMORRHAGE_TETHER_RADIUS, false, HEMORRHAGE_TETHER_DURATION_SECONDS);
-                    targetPlayer.sendTitle("Bound", "You cannot leave the radius.", 0, 40, 10);
+                    targetPlayer.sendMessage("§4§lBlood §7» §cYou've been tethered by Hemorrhage.");
                 }
+                showHemorrhageFeedback(attacker, "Target tethered.");
                 attacker.playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.9f, 0.9f);
             }
 
@@ -112,10 +113,16 @@ public class BloodCombatListener implements Listener {
 
             default -> {
                 hemorrhage.clearMark(target.getUniqueId());
+                showHemorrhageFeedback(attacker, "Rupture!");
                 attacker.playSound(attacker.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.9f, 1.0f);
                 triggerRupture(target, attacker);
             }
         }
+    }
+
+    private void showHemorrhageFeedback(Player attacker, String message) {
+        SoulsSMP.getInstance().getHudManager()
+                .showActionBarOverride(attacker, HEMO_PREFIX + message, ACTION_BAR_FEEDBACK_MILLIS);
     }
 
     private void triggerRupture(LivingEntity target, Player attacker) {
@@ -130,7 +137,7 @@ public class BloodCombatListener implements Listener {
             var direction = targetPlayer.getLocation().getDirection().multiply(-1);
             targetPlayer.setVelocity(direction.multiply(1.3).setY(0.4));
             targetPlayer.setGlowing(false);
-            targetPlayer.sendTitle("§c§lRUPTURE", "§75 hearts of true damage", 5, 40, 10);
+            targetPlayer.sendMessage("§4§lBlood §7» §cRupture — 5 hearts of true damage.");
         }
     }
 }

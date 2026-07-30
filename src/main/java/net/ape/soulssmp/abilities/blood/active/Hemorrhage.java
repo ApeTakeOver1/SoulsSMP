@@ -5,7 +5,6 @@ import net.ape.soulssmp.api.AbilityType;
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.api.SoulType;
 import org.bukkit.Particle;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.RayTraceResult;
@@ -18,6 +17,8 @@ public class Hemorrhage extends Ability {
 
     private static final double RANGE = 20.0;
     private static final int MARK_DURATION_SECONDS = 30;
+    private static final long ACTION_BAR_FEEDBACK_MILLIS = 2500L;
+    private static final String HEMO_PREFIX = "§4§lHemorrhage §7» §c";
 
     // Mark/stack tracking (formerly HemorrhageManager) - Hemorrhage owns this
     // state; BloodCombatListener and HudTask read it via
@@ -46,12 +47,12 @@ public class Hemorrhage extends Ability {
         LivingEntity target = getTarget(player);
 
         if (target == null) {
-            player.sendTitle("Hemorrhage", ChatColor.RED + "No target in range.", 0, 40, 10);
+            showFeedback(player, "No target in range.");
             return false;
         }
 
         if (!SoulsSMP.getInstance().getManaManager().spendMana(player, getManaCost())) {
-            player.sendTitle("Hemorrhage", ChatColor.RED + "Not enough mana.", 0, 40, 10);
+            showFeedback(player, "Not enough mana.");
             return false;
         }
 
@@ -59,9 +60,14 @@ public class Hemorrhage extends Ability {
 
         target.getWorld().spawnParticle(Particle.BLOCK_CRUMBLE, target.getLocation().add(0, 1, 0), 20,
                 0.3, 0.5, 0.3, org.bukkit.Material.REDSTONE_BLOCK.createBlockData());
-        player.sendTitle("Hemorrhage", ChatColor.RED + "Target Marked", 0, 40, 10);
+        showFeedback(player, "Target marked.");
         player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.0f);
         return true;
+    }
+
+    private void showFeedback(Player player, String message) {
+        SoulsSMP.getInstance().getHudManager()
+                .showActionBarOverride(player, HEMO_PREFIX + message, ACTION_BAR_FEEDBACK_MILLIS);
     }
 
     private LivingEntity getTarget(Player player) {

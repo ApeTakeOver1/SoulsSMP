@@ -14,6 +14,8 @@ import java.util.UUID;
 
 public class AbilityManager {
 
+    private static final long ACTION_BAR_FEEDBACK_MILLIS = 2500L;
+
     private final Map<AbilityType, Ability> registeredAbilities = new HashMap<>();
     private final Map<UUID, Map<AbilityType, Long>> cooldowns = new HashMap<>();
 
@@ -33,13 +35,14 @@ public class AbilityManager {
         Ability ability = registeredAbilities.get(type);
 
         if (ability == null) {
-            player.sendTitle("Ability", "That ability isn't available yet.", 0, 40, 10);
+            showFeedback(player, ChatColor.GRAY + "That ability isn't available yet.");
             return;
         }
 
         PlayerData data = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(player);
         if (data.getSoul() != ability.getRequiredSoul()) {
-            player.sendTitle("Ability", ChatColor.DARK_GRAY + "" + ChatColor.BOLD + ability.getDisplayName() + " doesn't belong to your Soul.", 0, 40, 10);
+            showFeedback(player, ChatColor.DARK_GRAY + "" + ChatColor.BOLD + ability.getDisplayName()
+                    + ChatColor.RED + " doesn't belong to your Soul.");
             return;
         }
 
@@ -49,7 +52,8 @@ public class AbilityManager {
         if (!isCreative && hasCooldown) {
             long remaining = getRemainingCooldownSeconds(player, type);
             if (remaining > 0) {
-                player.sendTitle("Ability Cooldown", ChatColor.DARK_GRAY + "" + ChatColor.BOLD + ability.getDisplayName() + " is on cooldown (" + remaining + "s).", 0, 40, 10);
+                showFeedback(player, ChatColor.DARK_GRAY + "" + ChatColor.BOLD + ability.getDisplayName()
+                        + ChatColor.RED + " is on cooldown (" + remaining + "s).");
                 return;
             }
         }
@@ -59,6 +63,11 @@ public class AbilityManager {
         if (fullUse && !isCreative && hasCooldown) {
             setCooldown(player, type, ability.getCooldownSeconds());
         }
+    }
+
+    private void showFeedback(Player player, String message) {
+        SoulsSMP.getInstance().getHudManager()
+                .showActionBarOverride(player, "§8§lSoul §7» " + message, ACTION_BAR_FEEDBACK_MILLIS);
     }
 
     public long getRemainingCooldownSeconds(Player player, AbilityType type) {

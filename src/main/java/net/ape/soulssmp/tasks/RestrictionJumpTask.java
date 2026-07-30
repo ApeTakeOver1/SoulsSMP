@@ -28,11 +28,11 @@ public class RestrictionJumpTask extends BukkitRunnable {
         Curse curse = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.CURSE, Curse.class);
 
         for (Player player : Bukkit.getOnlinePlayers()) {
-            boolean isRestricted = curse.isRestricted(player);
+            boolean jumpLocked = curse.isJumpLocked(player);
             boolean onGroundNow = player.isOnGround();
             Boolean onGroundBefore = wasOnGround.get(player.getUniqueId());
 
-            if (isRestricted && onGroundBefore != null && onGroundBefore && !onGroundNow) {
+            if (jumpLocked && onGroundBefore != null && onGroundBefore && !onGroundNow) {
                 Vector velocity = player.getVelocity();
                 if (velocity.getY() > 0) {
                     velocity.setY(0);

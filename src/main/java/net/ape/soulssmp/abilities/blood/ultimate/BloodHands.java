@@ -85,10 +85,13 @@ public class BloodHands extends Ability {
 
         player.sendMessage("§4§lBlood §7» §cBlood Hands unleashed.");
 
+        // Straight 50/50 coin flip between the two modes. Control only
+        // falls back to Sonic Clap if it lost nothing to actually grab -
+        // the randomness itself no longer depends on whether anyone's nearby.
+        boolean rollControl = random.nextBoolean();
         boolean controlEligible = hasNearbyTarget(player, CONTROL_TRIGGER_RANGE);
-        boolean rollControl = controlEligible && random.nextBoolean();
 
-        if (rollControl) {
+        if (rollControl && controlEligible) {
             control(player);
         } else {
             sonicClap(player);

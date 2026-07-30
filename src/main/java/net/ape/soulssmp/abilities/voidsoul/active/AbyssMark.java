@@ -6,6 +6,7 @@ import net.ape.soulssmp.api.AbilityType;
 import net.ape.soulssmp.api.SoulType;
 import org.bukkit.ChatColor;
 import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.RayTraceResult;
@@ -14,23 +15,30 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Reworked from scratch - the old version's HUD ("Marked (Xs)" + combo
+ * pips) never displayed reliably and the 3rd/5th-hit combo bonuses,
+ * mana refund, and Null-Field-conditional stun added a lot of surface
+ * area for that. Abyss Mark now works exactly like Hemorrhage: fixed
+ * mana cost, marks a target, builds a stack 1-5 on hits, and simply
+ * stops once it reaches 5 - no rupture-style burst, no refund, no stun.
+ * VoidCombatListener just increments the stack now; HudTask reads it
+ * the same way it reads Hemorrhage's stack status.
+ */
 public class AbyssMark extends Ability {
 
     private static final double RANGE = 30.0;
-    private static final int MARK_DURATION_SECONDS = 10;
+    private static final int MARK_DURATION_SECONDS = 30;
     private static final long ACTION_BAR_OVERRIDE_MILLIS = 1500L;
 
-    // Mark/combo tracking (formerly VoidMarkManager) - AbyssMark owns this state;
-    // VoidCombatListener and HudTask read it via
-    // SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.ABYSS_MARK, AbyssMark.class).
-    private static class MarkData {
-        final UUID markedBy;
-        int hitCount;
-        long expiresAt;
+    public static class MarkData {
+        public final UUID markedBy;
+        public int stacks;
+        public long expiresAt;
 
-        MarkData(UUID markedBy, long expiresAt) {
+        public MarkData(UUID markedBy, long expiresAt) {
             this.markedBy = markedBy;
-            this.hitCount = 0;
+            this.stacks = 0;
             this.expiresAt = expiresAt;
         }
     }
@@ -39,7 +47,7 @@ public class AbyssMark extends Ability {
     private final Map<UUID, UUID> markedTargetByCaster = new HashMap<>(); // casterId -> targetId
 
     public AbyssMark() {
-        super(AbilityType.ABYSS_MARK, "Abyss Mark", 75, 0, SoulType.VOID);
+        super(AbilityType.ABYSS_MARK, "Abyss Mark", 25, 20, SoulType.VOID);
     }
 
     @Override
@@ -58,12 +66,12 @@ public class AbyssMark extends Ability {
             return false;
         }
 
-        applyMark(target, player.getUniqueId(), MARK_DURATION_SECONDS);
+        applyMark(target.getUniqueId(), player.getUniqueId(), MARK_DURATION_SECONDS);
 
-        player.getWorld().spawnParticle(Particle.SOUL, target.getLocation().add(0, 1, 0), 20, 0.3, 0.5, 0.3, 0.01);
+        target.getWorld().spawnParticle(Particle.SOUL, target.getLocation().add(0, 1, 0), 20, 0.3, 0.5, 0.3, 0.01);
         SoulsSMP.getInstance().getHudManager().showActionBarOverride(player,
                 ChatColor.DARK_PURPLE + "Abyss Mark: " + ChatColor.RESET + "Target marked", ACTION_BAR_OVERRIDE_MILLIS);
-        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT, 0.8f, 1.0f);
+        player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.8f, 1.0f);
         return true;
     }
 
@@ -79,83 +87,68 @@ public class AbyssMark extends Ability {
         return (LivingEntity) result.getHitEntity();
     }
 
-    private void applyMark(LivingEntity target, UUID markedBy, int durationSeconds) {
+    private void applyMark(UUID targetId, UUID casterId, int durationSeconds) {
         long expiresAt = System.currentTimeMillis() + (durationSeconds * 1000L);
-        marks.put(target.getUniqueId(), new MarkData(markedBy, expiresAt));
-        markedTargetByCaster.put(markedBy, target.getUniqueId());
+        marks.put(targetId, new MarkData(casterId, expiresAt));
+        markedTargetByCaster.put(casterId, targetId);
     }
 
-    public boolean isMarkedBy(LivingEntity target, UUID attacker) {
-        MarkData data = marks.get(target.getUniqueId());
+    public boolean isMarkedBy(UUID targetId, UUID casterId) {
+        MarkData data = marks.get(targetId);
         if (data == null) return false;
 
         if (System.currentTimeMillis() > data.expiresAt) {
-            marks.remove(target.getUniqueId());
-            markedTargetByCaster.remove(data.markedBy); // Also remove from caster map
+            marks.remove(targetId);
             return false;
         }
 
-        return data.markedBy.equals(attacker);
+        return data.markedBy.equals(casterId);
     }
 
-    public int registerHit(LivingEntity target, UUID attacker) {
-        MarkData data = marks.get(target.getUniqueId());
-        if (data == null || !data.markedBy.equals(attacker)) return -1;
+    public int registerHit(UUID targetId, UUID casterId) {
+        MarkData data = marks.get(targetId);
+        if (data == null || !data.markedBy.equals(casterId)) return -1;
 
         if (System.currentTimeMillis() > data.expiresAt) {
-            marks.remove(target.getUniqueId());
-            markedTargetByCaster.remove(data.markedBy); // Also remove from caster map
+            marks.remove(targetId);
             return -1;
         }
 
-        data.hitCount++;
-        return data.hitCount;
+        if (data.stacks < 5) {
+            data.stacks++;
+        }
+        return data.stacks;
     }
 
-    public void clearMark(LivingEntity target) {
-        MarkData data = marks.remove(target.getUniqueId());
+    public void clearMark(UUID targetId) {
+        MarkData data = marks.remove(targetId);
         if (data != null) {
             markedTargetByCaster.remove(data.markedBy);
         }
     }
 
     /**
-     * Returns the combo hit count on the mark this caster currently has
-     * active on their target, or 0 if they have no active mark.
-     * Used by the HUD to show combo pips.
+     * Returns [stacks, secondsRemaining] for the caster's currently marked
+     * target, or null if they have no active mark. Same shape as
+     * Hemorrhage.getCurrentMarkStatus() so HudTask can read it the same way.
      */
-    public int getHitCount(UUID casterId) {
+    public int[] getCurrentMarkStatus(UUID casterId) {
         UUID targetId = markedTargetByCaster.get(casterId);
-        if (targetId == null) return 0;
-
-        MarkData data = marks.get(targetId);
-        if (data == null) return 0;
-
-        return data.hitCount;
-    }
-
-    /**
-     * Returns how many seconds are left on the mark this caster currently
-     * has active on their target, or 0 if they have no active mark.
-     * Used by the HUD to show mark duration instead of a cooldown.
-     */
-    public int getRemainingMarkSeconds(UUID casterId) {
-        UUID targetId = markedTargetByCaster.get(casterId);
-        if (targetId == null) return 0;
+        if (targetId == null) return null;
 
         MarkData data = marks.get(targetId);
         if (data == null) {
             markedTargetByCaster.remove(casterId);
-            return 0;
+            return null;
         }
 
         long remainingMillis = data.expiresAt - System.currentTimeMillis();
         if (remainingMillis <= 0) {
             marks.remove(targetId);
             markedTargetByCaster.remove(casterId);
-            return 0;
+            return null;
         }
 
-        return (int) (remainingMillis / 1000) + 1;
+        return new int[]{data.stacks, (int) (remainingMillis / 1000) + 1};
     }
 }

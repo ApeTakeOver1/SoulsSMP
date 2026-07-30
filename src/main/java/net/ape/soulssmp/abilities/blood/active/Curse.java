@@ -50,6 +50,11 @@ public class Curse extends Ability {
     // RestrictionSprintListener, BloodDebuffVisualTask, RestrictionJumpTask.
     private final Map<UUID, Long> restrictedUntil = new HashMap<>();
 
+    // Self-jump-lock while the caster is channeling Curse (separate from the
+    // Restriction debuff above, which is what happens to the *target*).
+    // Read by RestrictionJumpTask via isJumpLocked().
+    private final Map<UUID, Long> channelNoJumpUntil = new HashMap<>();
+
     public Curse() {
         super(AbilityType.CURSE, "Curse", 40, 30, SoulType.BLOOD);
     }
@@ -71,7 +76,11 @@ public class Curse extends Ability {
 
     private void channelStun(Player player) {
         player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, STUN_TICKS, 250, false, true, false));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, STUN_TICKS, -10, false, false, false));
+        lockJumpDuringChannel(player.getUniqueId(), STUN_TICKS);
+    }
+
+    private void lockJumpDuringChannel(UUID playerId, int durationTicks) {
+        channelNoJumpUntil.put(playerId, System.currentTimeMillis() + (durationTicks * 50L));
     }
 
     private void playRitualVisual(Player player) {
@@ -261,6 +270,28 @@ public class Curse extends Ability {
 
         if (System.currentTimeMillis() > until) {
             restrictedUntil.remove(player.getUniqueId());
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * True if this player should be prevented from jumping right now -
+     * either because they're the *victim* of a landed Restriction curse,
+     * or because they're the *caster* currently channeling Curse. Both
+     * cases are resolved the same real way: RestrictionJumpTask zeroes out
+     * upward velocity the instant it detects a jump, instead of the old
+     * JUMP_BOOST(-10) potion hack.
+     */
+    public boolean isJumpLocked(Player player) {
+        if (isRestricted(player)) return true;
+
+        Long until = channelNoJumpUntil.get(player.getUniqueId());
+        if (until == null) return false;
+
+        if (System.currentTimeMillis() > until) {
+            channelNoJumpUntil.remove(player.getUniqueId());
             return false;
         }
 

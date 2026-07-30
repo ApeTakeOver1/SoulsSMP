@@ -164,26 +164,24 @@ public class HudTask extends BukkitRunnable {
     }
 
     private String buildAbyssMarkBar(Player player) {
-        String costPrefix = "§7(§fALL§7) "; // Abyss Mark costs all current mana
+        int[] status = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.ABYSS_MARK, AbyssMark.class)
+                .getCurrentMarkStatus(player.getUniqueId());
 
-        if (player.getGameMode() == GameMode.CREATIVE) {
-            return costPrefix + "§5§lAbyss Mark §7» §aREADY";
+        if (status == null) {
+            return buildCooldownBar(player, AbilityType.ABYSS_MARK, "Abyss Mark", "§5");
         }
 
-        AbyssMark abyssMark = SoulsSMP.getInstance().getAbilityManager().getAs(AbilityType.ABYSS_MARK, AbyssMark.class);
-        int hitCount = abyssMark.getHitCount(player.getUniqueId());
-        int remainingMarkSeconds = abyssMark.getRemainingMarkSeconds(player.getUniqueId());
-
-        if (remainingMarkSeconds <= 0) {
-            return costPrefix + "§5§lAbyss Mark §7» §aREADY";
-        }
+        int stacks = status[0];
+        int secondsRemaining = status[1];
 
         StringBuilder pips = new StringBuilder();
-        for (int i = 1; i <= 5; i++) { // Max 5 hits for combo
-            pips.append(i <= hitCount ? "§d●" : "§8●");
+        for (int i = 1; i <= 5; i++) {
+            pips.append(i <= stacks ? "§d●" : "§8●");
         }
 
-        return costPrefix + "§5§lAbyss Mark §7» " + pips + " §7" + hitCount + "/5 §7(" + remainingMarkSeconds + "s)";
+        String label = ChatColor.DARK_PURPLE.toString() + ChatColor.BOLD + "Abyss Mark";
+
+        return label + " §7» " + pips + " §7" + stacks + "/5 §7(" + secondsRemaining + "s)";
     }
 
     private String buildHemorrhageBar(Player player) {
