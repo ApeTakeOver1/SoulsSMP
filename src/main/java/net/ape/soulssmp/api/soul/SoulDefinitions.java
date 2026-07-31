@@ -8,7 +8,6 @@ import net.ape.soulssmp.abilities.voidsoul.active.AbyssMark;
 import net.ape.soulssmp.abilities.voidsoul.active.VoidStep;
 import net.ape.soulssmp.abilities.voidsoul.ultimate.NullField;
 import net.ape.soulssmp.abilities.voidsoul.passive.VoidPassiveTask;
-import net.ape.soulssmp.abilities.echo.passive.EchoPassiveTask;
 import net.ape.soulssmp.api.AbilityType;
 import net.ape.soulssmp.api.SoulType;
 import net.ape.soulssmp.managers.core.AbilityManager;

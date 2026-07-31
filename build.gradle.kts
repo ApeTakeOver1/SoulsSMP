@@ -6,7 +6,6 @@ plugins {
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
-    maven("https://repo.dmulloy2.net/repository/maven-public/") // ProtocolLib
 }
 
 dependencies {
@@ -14,7 +13,8 @@ dependencies {
     // Used for Echo Soul's fake-player afterimage and true (armor-hiding) invisibility packets.
     // Server needs the actual ProtocolLib.jar installed in /plugins - this is compileOnly,
     // not shaded in, since ProtocolLib should stay a separate plugin on the server.
-    compileOnly("com.comphenix.protocol:ProtocolLib:5.3.0")
+    // Package name is still com.comphenix.protocol.* even though the group ID is net.dmulloy2.
+    compileOnly("net.dmulloy2:ProtocolLib:5.4.0")
 }
 
 java {

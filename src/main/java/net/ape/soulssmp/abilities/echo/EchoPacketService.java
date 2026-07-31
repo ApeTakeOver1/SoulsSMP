@@ -176,9 +176,7 @@ public class EchoPacketService {
     }
 
     private static void addToTabList(WrappedGameProfile profile, List<Player> viewers) {
-        PacketContainer packet = manager().createPacket(PacketType.Play.Server.PLAYER_INFO_UPDATE);
-        // VERSION-SENSITIVE: exact structure modifier names for the 1.19.3+ split player-info packet.
-        packet.getPlayerInfoActions().write(0, Set.of(EnumWrappers.PlayerInfoAction.ADD_PLAYER));
+        PacketContainer packet = manager().createPacket(PacketType.Play.Server.PLAYER_INFO);        packet.getPlayerInfoActions().write(0, Set.of(EnumWrappers.PlayerInfoAction.ADD_PLAYER));
         packet.getPlayerInfoDataLists().write(
                 1, // ADD_PLAYER's data list slot; some ProtocolLib versions use a different index here
                 List.of(new com.comphenix.protocol.wrappers.PlayerInfoData(

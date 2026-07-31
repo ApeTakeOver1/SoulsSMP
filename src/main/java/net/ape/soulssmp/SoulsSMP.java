@@ -7,7 +7,6 @@ import net.ape.soulssmp.commands.SoulTabCompleter;
 import net.ape.soulssmp.managers.HudManager;
 import net.ape.soulssmp.managers.StunManager;
 import net.ape.soulssmp.managers.echosoul.ResonanceManager;
-import net.ape.soulssmp.abilities.echo.passive.EchoPassiveTask;
 import net.ape.soulssmp.listeners.EchoCombatListener;
 import net.ape.soulssmp.tasks.HudTask;
 import net.ape.soulssmp.tasks.ResonanceTask;

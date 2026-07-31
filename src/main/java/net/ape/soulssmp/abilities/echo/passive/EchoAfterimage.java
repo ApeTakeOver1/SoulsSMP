@@ -1,5 +1,6 @@
-package net.ape.soulssmp.abilities.echo;
+package net.ape.soulssmp.abilities.echo.passive;
 
+import net.ape.soulssmp.abilities.echo.EchoPacketService;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 

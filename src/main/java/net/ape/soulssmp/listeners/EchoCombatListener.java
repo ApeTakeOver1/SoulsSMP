@@ -1,9 +1,8 @@
 package net.ape.soulssmp.listeners;
 
 import net.ape.soulssmp.SoulsSMP;
-import net.ape.soulssmp.abilities.echo.EchoAfterimage;
+import net.ape.soulssmp.abilities.echo.passive.EchoAfterimage;
 import net.ape.soulssmp.abilities.echo.EchoTier;
-import net.ape.soulssmp.abilities.echo.passive.EchoPassiveTask;
 import net.ape.soulssmp.api.SoulType;
 import net.ape.soulssmp.api.soul.SoulDefinition;
 import net.ape.soulssmp.data.PlayerData;
