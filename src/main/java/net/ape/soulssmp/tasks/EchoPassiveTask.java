@@ -1,4 +1,4 @@
-package net.ape.soulssmp.tasks;
+package net.ape.soulssmp.abilities.echo.passive;
 
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.abilities.echo.EchoPacketService;
@@ -31,36 +31,47 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Handles Echo Soul's passive: baseline Speed, the Noise Meter's tier-based
  * distortion effects (transparency, quiet footsteps, hidden nametag), Lost
- * Signal's illusion footsteps, and Perfect Echo's attack-speed/damage buff.
- * Perfect Echo's afterimage visual itself is triggered from
- * EchoCombatListener (see EchoAfterimage) since it only fires on a hit.
+ * Signal's full invisibility + periodic location pulse, and Perfect Echo's
+ * full invisibility + attack-speed/damage buff. Perfect Echo's afterimage
+ * visual itself is triggered from EchoCombatListener (see EchoAfterimage)
+ * since it only fires on a hit.
  *
- * Runs every 5 ticks (0.25s) so the flicker cycle and nametag/silence state
- * stay responsive.
+ * Runs every 5 ticks (0.25s) so flicker/pulse/nametag/silence state stays
+ * responsive.
  *
  * Tier bands (per current design):
  *   0%          - Speed II, nothing else.
  *   0-25%       - Echo: Speed III, extra Resonance on hit (see EchoCombatListener).
- *   25-50%      - Distorted Echo: slight transparency, quiet footsteps, hidden nametag.
- *   50-75%      - Lost Signal: 50% transparency, real footsteps stay quiet,
- *                 and illusion footstep particles appear as you move.
- *   75-100%     - Perfect Echo: no transparency - instead faster attack
- *                 speed, bonus damage, and an afterimage on every attack.
+ *   25-50%      - Distorted Echo: slight transparency (brief flicker), quiet
+ *                 footsteps, hidden nametag.
+ *   50-75%      - Lost Signal: FULL invisibility (armor hidden too), but
+ *                 every ~5 seconds your location is briefly revealed as a
+ *                 "signal pulse" (forced visible for ~1s). Real footsteps
+ *                 stay quiet, and illusion footstep particles appear too.
+ *   75-100%     - Perfect Echo: FULL invisibility (armor hidden too),
+ *                 permanently - plus faster attack speed and more damage.
+ *                 Attacking someone reveals your location via an afterimage
+ *                 (handled by EchoCombatListener/EchoAfterimage) and forces
+ *                 you visible for a short window, same as the old hit-reveal.
  *
- * PLACEHOLDER TUNING - flicker duty-cycle fractions, ambient illusion
- * chance, and the Perfect Echo attack speed bonus are all easy to retune
- * once tested in-game.
+ * PLACEHOLDER TUNING - Distorted Echo's flicker duty-cycle, the Lost Signal
+ * pulse interval/duration, ambient illusion chance, and the Perfect Echo
+ * attack speed bonus are all easy to retune once tested in-game.
  */
 public class EchoPassiveTask extends BukkitRunnable {
 
     private static final String HIDDEN_TAG_TEAM_NAME = "soulssmp_echo_hidden";
 
-    private static final int CYCLE_RUNS = 8; // 8 runs * 5 ticks = 2 seconds per flicker cycle
+    private static final int CYCLE_RUNS = 8; // 8 runs * 5 ticks = 2 seconds per flicker cycle (Distorted Echo only)
     private static final int INVISIBILITY_EFFECT_TICKS = 7; // slightly longer than the 5-tick run gap
 
-    // How much of the flicker cycle is spent transparent, per tier. 0 = fully visible.
+    // How much of the flicker cycle is spent transparent. 0 = fully visible. Distorted Echo only now.
     private static final double DISTORTED_ECHO_TRANSPARENT_FRACTION = 0.15; // "slight transparency"
-    private static final double LOST_SIGNAL_TRANSPARENT_FRACTION = 0.5;     // "50% transparency"
+
+    private static final long HIT_REVEAL_MILLIS = 700; // brief forced-visible window after landing a hit (Perfect Echo)
+
+    private static final long LOST_SIGNAL_PULSE_INTERVAL_MILLIS = 5000L; // "every 5 seconds or so"
+    private static final long LOST_SIGNAL_PULSE_REVEAL_MILLIS = 1000L; // how long the location-reveal pulse lasts
 
     private static final double ILLUSION_FOOTSTEP_CHANCE_PER_RUN = 0.20; // Lost Signal only
 
@@ -71,15 +82,16 @@ public class EchoPassiveTask extends BukkitRunnable {
     private final Set<UUID> nametagHidden = new HashSet<>();
     private final Set<UUID> footstepsSilenced = new HashSet<>();
     private final Set<UUID> attackSpeedBuffed = new HashSet<>();
-    private final Map<UUID, Long> revealedUntilMillis = new HashMap<>();
 
-    private static final long HIT_REVEAL_MILLIS = 700; // "very brief" reveal window after landing a hit, ~0.7s
+    // Forced-fully-visible window: used both for the post-hit reveal (Perfect Echo)
+    // and the periodic location pulse (Lost Signal).
+    private final Map<UUID, Long> revealedUntilMillis = new HashMap<>();
+    private final Map<UUID, Long> lastLostSignalPulseAt = new HashMap<>();
 
     /**
      * Called by EchoCombatListener right after a hit lands while the
-     * attacker was in a transparent tier (Distorted Echo / Lost Signal) -
-     * forces them fully visible for a short window instead of a full
-     * fade-back-in like the old Perfect Echo reveal used to be.
+     * attacker is in Perfect Echo - forces them fully visible for a short
+     * window (the afterimage moment) instead of staying hidden.
      */
     public void markRevealedAfterHit(UUID playerId) {
         revealedUntilMillis.put(playerId, System.currentTimeMillis() + HIT_REVEAL_MILLIS);
@@ -122,40 +134,67 @@ public class EchoPassiveTask extends BukkitRunnable {
     }
 
     private void applyTransparency(Player player, EchoTier tier) {
-        Long revealUntil = revealedUntilMillis.get(player.getUniqueId());
+        UUID id = player.getUniqueId();
+
+        // A forced-visible window (post-hit reveal, or Lost Signal's periodic pulse)
+        // always wins over whatever the tier would normally do.
+        Long revealUntil = revealedUntilMillis.get(id);
         if (revealUntil != null) {
             if (System.currentTimeMillis() < revealUntil) {
                 player.removePotionEffect(PotionEffectType.INVISIBILITY);
                 EchoPacketService.revealEquipment(player);
-                return; // forced fully visible for a moment right after landing a hit
+                return;
             }
-            revealedUntilMillis.remove(player.getUniqueId());
+            revealedUntilMillis.remove(id);
         }
 
-        double transparentFraction;
         switch (tier) {
-            case DISTORTED_ECHO -> transparentFraction = DISTORTED_ECHO_TRANSPARENT_FRACTION;
-            case LOST_SIGNAL -> transparentFraction = LOST_SIGNAL_TRANSPARENT_FRACTION;
-            default -> transparentFraction = 0.0; // Dormant, Echo, and Perfect Echo are all fully visible
+            case DISTORTED_ECHO -> applyFlicker(player);
+            case LOST_SIGNAL -> applyLostSignal(player);
+            case PERFECT_ECHO -> applyFullInvisibility(player);
+            default -> {
+                player.removePotionEffect(PotionEffectType.INVISIBILITY);
+                EchoPacketService.revealEquipment(player);
+            }
         }
+    }
 
-        if (transparentFraction <= 0) {
-            player.removePotionEffect(PotionEffectType.INVISIBILITY);
-            return;
-        }
-
-        int transparentRuns = (int) Math.round(CYCLE_RUNS * transparentFraction);
+    /** Distorted Echo only: brief, mostly-visible flicker to simulate "slight transparency". */
+    private void applyFlicker(Player player) {
+        int transparentRuns = (int) Math.round(CYCLE_RUNS * DISTORTED_ECHO_TRANSPARENT_FRACTION);
         boolean shouldBeTransparentThisRun = (tickCounter % CYCLE_RUNS) < transparentRuns;
 
         if (shouldBeTransparentThisRun) {
-            player.addPotionEffect(new PotionEffect(
-                    PotionEffectType.INVISIBILITY, INVISIBILITY_EFFECT_TICKS, 0, true, false, false
-            ));
-            EchoPacketService.hideEquipment(player); // true invisibility: hide worn armor too, not just the body
+            applyFullInvisibility(player);
         } else {
             player.removePotionEffect(PotionEffectType.INVISIBILITY);
             EchoPacketService.revealEquipment(player);
         }
+    }
+
+    /** Lost Signal: stays fully invisible, but pulses fully visible for ~1s every ~5s. */
+    private void applyLostSignal(Player player) {
+        UUID id = player.getUniqueId();
+        long now = System.currentTimeMillis();
+        Long lastPulse = lastLostSignalPulseAt.get(id);
+
+        if (lastPulse == null || now - lastPulse >= LOST_SIGNAL_PULSE_INTERVAL_MILLIS) {
+            lastLostSignalPulseAt.put(id, now);
+            revealedUntilMillis.put(id, now + LOST_SIGNAL_PULSE_REVEAL_MILLIS);
+            player.removePotionEffect(PotionEffectType.INVISIBILITY);
+            EchoPacketService.revealEquipment(player);
+            return;
+        }
+
+        applyFullInvisibility(player);
+    }
+
+    /** Perfect Echo (and the invisible phase of Distorted Echo / Lost Signal): stays hidden, armor included. */
+    private void applyFullInvisibility(Player player) {
+        player.addPotionEffect(new PotionEffect(
+                PotionEffectType.INVISIBILITY, INVISIBILITY_EFFECT_TICKS, 0, true, false, false
+        ));
+        EchoPacketService.hideEquipment(player); // true invisibility: hide worn armor too, not just the body
     }
 
     private void applyNametagVisibility(Player player, EchoTier tier) {
@@ -246,7 +285,8 @@ public class EchoPassiveTask extends BukkitRunnable {
 
     private void cleanupIfNeeded(Player player) {
         revealedUntilMillis.remove(player.getUniqueId());
-        EchoPacketService.revealEquipment(player); // in case they left mid-flicker with armor hidden from viewers
+        lastLostSignalPulseAt.remove(player.getUniqueId());
+        EchoPacketService.revealEquipment(player); // in case they left mid-invis with armor hidden from viewers
         if (nametagHidden.remove(player.getUniqueId())) {
             Team team = getOrCreateHiddenTagTeam();
             if (team != null) team.removeEntry(player.getName());

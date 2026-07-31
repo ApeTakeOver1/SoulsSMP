@@ -1,5 +1,6 @@
 package net.ape.soulssmp;
 
+import net.ape.soulssmp.abilities.echo.passive.EchoPassiveTask;
 import net.ape.soulssmp.managers.core.AbilityManager;
 import net.ape.soulssmp.managers.SilenceManager;
 import net.ape.soulssmp.commands.SoulCommand;

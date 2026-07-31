@@ -4,6 +4,7 @@ import net.ape.soulssmp.abilities.blood.active.Curse;
 import net.ape.soulssmp.abilities.blood.active.Hemorrhage;
 import net.ape.soulssmp.abilities.blood.ultimate.BloodHands;
 import net.ape.soulssmp.abilities.blood.passive.BloodPassiveTask;
+import net.ape.soulssmp.abilities.echo.passive.EchoPassiveTask;
 import net.ape.soulssmp.abilities.voidsoul.active.AbyssMark;
 import net.ape.soulssmp.abilities.voidsoul.active.VoidStep;
 import net.ape.soulssmp.abilities.voidsoul.ultimate.NullField;
@@ -11,7 +12,6 @@ import net.ape.soulssmp.abilities.voidsoul.passive.VoidPassiveTask;
 import net.ape.soulssmp.api.AbilityType;
 import net.ape.soulssmp.api.SoulType;
 import net.ape.soulssmp.managers.core.AbilityManager;
-import net.ape.soulssmp.tasks.EchoPassiveTask;
 import net.ape.soulssmp.tasks.ResonanceTask;
 
 import java.util.List;
