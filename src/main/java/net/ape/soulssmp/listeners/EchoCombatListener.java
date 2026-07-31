@@ -6,6 +6,7 @@ import net.ape.soulssmp.abilities.echo.EchoTier;
 import net.ape.soulssmp.api.SoulType;
 import net.ape.soulssmp.api.soul.SoulDefinition;
 import net.ape.soulssmp.data.PlayerData;
+import net.ape.soulssmp.tasks.EchoPassiveTask;
 import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;

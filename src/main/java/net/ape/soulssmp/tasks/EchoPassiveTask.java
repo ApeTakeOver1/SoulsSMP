@@ -1,4 +1,4 @@
-package net.ape.soulssmp.abilities.echo.passive;
+package net.ape.soulssmp.tasks;
 
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.abilities.echo.EchoPacketService;

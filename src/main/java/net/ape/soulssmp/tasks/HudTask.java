@@ -1,6 +1,7 @@
 package net.ape.soulssmp.tasks;
 
 import net.ape.soulssmp.SoulsSMP;
+import net.ape.soulssmp.abilities.echo.EchoTier;
 import net.ape.soulssmp.api.Ability;
 import net.ape.soulssmp.api.AbilityType;
 import net.ape.soulssmp.api.soul.SoulDefinition;
@@ -13,6 +14,7 @@ import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
+import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -22,15 +24,32 @@ public class HudTask extends BukkitRunnable {
     @Override
     public void run() {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            updateManaBar(player);
+            updateTopBar(player);
             updateUltimateBar(player);
             updateActionBar(player);
         }
     }
 
-    private void updateManaBar(Player player) {
-        BossBar manaBar = SoulsSMP.getInstance().getHudManager().getManaBar(player);
-        if (manaBar == null) return;
+    /**
+     * The top boss bar is Mana for Void/Blood, but Echo doesn't use mana at
+     * all - it runs on Resonance (the Noise Meter) instead. Same BossBar
+     * object gets re-themed per soul rather than creating a second bar.
+     */
+    private void updateTopBar(Player player) {
+        BossBar topBar = SoulsSMP.getInstance().getHudManager().getManaBar(player);
+        if (topBar == null) return;
+
+        SoulType soul = SoulsSMP.getInstance().getPlayerDataManager().getPlayerData(player).getSoul();
+
+        if (soul == SoulType.ECHO) {
+            updateResonanceBar(player, topBar);
+        } else {
+            updateManaBar(player, topBar);
+        }
+    }
+
+    private void updateManaBar(Player player, BossBar manaBar) {
+        manaBar.setColor(BarColor.PURPLE);
 
         if (player.getGameMode() == GameMode.CREATIVE) {
             manaBar.setProgress(1.0);
@@ -44,6 +63,17 @@ public class HudTask extends BukkitRunnable {
         double progress = maxMana <= 0 ? 0 : Math.max(0, Math.min(1.0, (double) mana / maxMana));
         manaBar.setProgress(progress);
         manaBar.setTitle("§d§lMana §7» §f" + mana + " §7/ §f" + maxMana);
+    }
+
+    private void updateResonanceBar(Player player, BossBar resonanceBar) {
+        resonanceBar.setColor(BarColor.WHITE);
+
+        double resonance = SoulsSMP.getInstance().getResonanceManager().getResonance(player);
+        EchoTier tier = SoulsSMP.getInstance().getResonanceManager().getTier(player);
+
+        double progress = Math.max(0, Math.min(1.0, resonance / net.ape.soulssmp.managers.echosoul.ResonanceManager.MAX_RESONANCE));
+        resonanceBar.setProgress(progress);
+        resonanceBar.setTitle("§f§lResonance §7» §f" + (int) resonance + "% §7- " + tier.getDisplayName());
     }
 
     private void updateUltimateBar(Player player) {
@@ -68,7 +98,15 @@ public class HudTask extends BukkitRunnable {
         }
 
         Ability ultimate = SoulsSMP.getInstance().getAbilityManager().getAbility(ultimateType);
-        if (ultimate == null) return;
+        if (ultimate == null) {
+            // Echo's Absolute Echo (and any other declared-but-unimplemented ultimate)
+            // has no registered Ability yet - show that plainly instead of leaving the
+            // bar frozen on whatever the last soul's title happened to be.
+            ultimateBar.setColor(BarColor.WHITE);
+            ultimateBar.setProgress(0);
+            ultimateBar.setTitle("§7" + ultimateType.name() + " §7» §8Not Implemented");
+            return;
+        }
 
         String label;
         String hint = " (Sneak + F)";
@@ -118,11 +156,27 @@ public class HudTask extends BukkitRunnable {
             String curseText = buildCooldownBar(player, AbilityType.CURSE, "Curse", "§4");
             String hemorrhageText = buildHemorrhageBar(player);
             fullText = curseText + "   §8|   " + hemorrhageText;
+        } else if (soul == SoulType.ECHO) {
+            fullText = buildEchoActionBar(player);
         } else {
             fullText = "§7No Soul bound";
         }
 
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(fullText));
+    }
+
+    /**
+     * Echo has no ability slots wired up yet (False Reflection / Vanishing
+     * Strike / Absolute Echo aren't implemented), so there's nothing to
+     * show cooldown bars for. Shows tier + resonance instead so the action
+     * bar isn't blank/misleading while abilities are still placeholder.
+     */
+    private String buildEchoActionBar(Player player) {
+        EchoTier tier = SoulsSMP.getInstance().getResonanceManager().getTier(player);
+        double resonance = SoulsSMP.getInstance().getResonanceManager().getResonance(player);
+
+        return "§f§lEcho Soul §7» " + tier.getDisplayName() + " §7(" + (int) resonance + "%)"
+                + "   §8|   §7Abilities: §8Not Implemented Yet";
     }
 
     private int getDisplayCost(Player player, int baseCost) {
