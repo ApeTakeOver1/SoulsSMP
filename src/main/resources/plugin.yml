@@ -7,6 +7,8 @@ load: STARTUP
 
 authors: [ApeTakeOver, random_revilo]
 
+softdepend: [ProtocolLib]
+
 commands:
   soul:
     description: Access your Soul abilities

@@ -6,10 +6,15 @@ plugins {
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
+    maven("https://repo.dmulloy2.net/repository/maven-public/") // ProtocolLib
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    // Used for Echo Soul's fake-player afterimage and true (armor-hiding) invisibility packets.
+    // Server needs the actual ProtocolLib.jar installed in /plugins - this is compileOnly,
+    // not shaded in, since ProtocolLib should stay a separate plugin on the server.
+    compileOnly("com.comphenix.protocol:ProtocolLib:5.3.0")
 }
 
 java {

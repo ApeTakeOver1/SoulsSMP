@@ -3,7 +3,9 @@ package net.ape.soulssmp.listeners;
 import net.ape.soulssmp.SoulsSMP;
 import net.ape.soulssmp.abilities.echo.EchoAfterimage;
 import net.ape.soulssmp.abilities.echo.EchoTier;
+import net.ape.soulssmp.abilities.echo.passive.EchoPassiveTask;
 import net.ape.soulssmp.api.SoulType;
+import net.ape.soulssmp.api.soul.SoulDefinition;
 import net.ape.soulssmp.data.PlayerData;
 import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
@@ -16,12 +18,15 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 /**
  * Handles Echo Soul's combat-driven Noise Meter gains, Perfect Echo's
- * bonus damage + attack afterimage, and Warden immunity.
+ * bonus damage + random attack afterimage, the brief reveal-after-hit for
+ * the transparent tiers, and Warden immunity.
  *
- * PLACEHOLDER TUNING - all resonance gain amounts and the Perfect Echo
- * damage multiplier below.
+ * PLACEHOLDER TUNING - all resonance gain amounts, the Perfect Echo damage
+ * multiplier, and the afterimage chance below.
  */
 public class EchoCombatListener implements Listener {
 
@@ -32,6 +37,7 @@ public class EchoCombatListener implements Listener {
     private static final double EXPLOSION_RESONANCE_RADIUS = 15.0;
 
     private static final double PERFECT_ECHO_DAMAGE_MULTIPLIER = 1.3; // "more damage" at Perfect Echo
+    private static final double PERFECT_ECHO_AFTERIMAGE_CHANCE = 0.5; // afterimage is random, not on every hit
 
     @EventHandler
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
@@ -91,10 +97,19 @@ public class EchoCombatListener implements Listener {
         double gain = tierBeforeHit == EchoTier.DORMANT ? RESONANCE_ON_DEAL_DAMAGE : RESONANCE_ON_DEAL_DAMAGE_ECHO_BAND;
         SoulsSMP.getInstance().getResonanceManager().addResonance(attacker, gain);
 
-        // Perfect Echo: bonus damage and an afterimage of yourself finishing the attack.
+        if (tierBeforeHit == EchoTier.DISTORTED_ECHO || tierBeforeHit == EchoTier.LOST_SIGNAL) {
+            // Landing a hit briefly gives your position away, then you fade back out.
+            EchoPassiveTask passiveTask = findEchoPassiveTask();
+            if (passiveTask != null) passiveTask.markRevealedAfterHit(attacker.getUniqueId());
+        }
+
+        // Perfect Echo: bonus damage always applies; the afterimage is a random chance, not guaranteed.
         if (tierBeforeHit == EchoTier.PERFECT_ECHO) {
             event.setDamage(event.getDamage() * PERFECT_ECHO_DAMAGE_MULTIPLIER);
-            EchoAfterimage.spawn(attacker, target);
+
+            if (ThreadLocalRandom.current().nextDouble() < PERFECT_ECHO_AFTERIMAGE_CHANCE) {
+                EchoAfterimage.spawn(attacker, target);
+            }
         }
     }
 
@@ -103,5 +118,17 @@ public class EchoCombatListener implements Listener {
         if (victimData.getSoul() != SoulType.ECHO) return;
 
         SoulsSMP.getInstance().getResonanceManager().addResonance(victim, RESONANCE_ON_TAKE_DAMAGE);
+    }
+
+    private EchoPassiveTask findEchoPassiveTask() {
+        SoulDefinition definition = SoulsSMP.getInstance().getSoulRegistry().get(SoulType.ECHO);
+        if (definition == null) return null;
+
+        for (SoulDefinition.PassiveSchedule passive : definition.getPassives()) {
+            if (passive.task() instanceof EchoPassiveTask echoPassiveTask) {
+                return echoPassiveTask;
+            }
+        }
+        return null;
     }
 }

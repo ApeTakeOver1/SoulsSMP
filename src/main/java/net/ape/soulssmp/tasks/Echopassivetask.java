@@ -1,6 +1,7 @@
 package net.ape.soulssmp.abilities.echo.passive;
 
 import net.ape.soulssmp.SoulsSMP;
+import net.ape.soulssmp.abilities.echo.EchoPacketService;
 import net.ape.soulssmp.abilities.echo.EchoTier;
 import net.ape.soulssmp.api.SoulType;
 import net.ape.soulssmp.data.PlayerData;
@@ -21,6 +22,8 @@ import org.bukkit.scoreboard.ScoreboardManager;
 import org.bukkit.scoreboard.Team;
 
 import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -68,6 +71,19 @@ public class EchoPassiveTask extends BukkitRunnable {
     private final Set<UUID> nametagHidden = new HashSet<>();
     private final Set<UUID> footstepsSilenced = new HashSet<>();
     private final Set<UUID> attackSpeedBuffed = new HashSet<>();
+    private final Map<UUID, Long> revealedUntilMillis = new HashMap<>();
+
+    private static final long HIT_REVEAL_MILLIS = 700; // "very brief" reveal window after landing a hit, ~0.7s
+
+    /**
+     * Called by EchoCombatListener right after a hit lands while the
+     * attacker was in a transparent tier (Distorted Echo / Lost Signal) -
+     * forces them fully visible for a short window instead of a full
+     * fade-back-in like the old Perfect Echo reveal used to be.
+     */
+    public void markRevealedAfterHit(UUID playerId) {
+        revealedUntilMillis.put(playerId, System.currentTimeMillis() + HIT_REVEAL_MILLIS);
+    }
 
     private int tickCounter = 0;
 
@@ -106,6 +122,16 @@ public class EchoPassiveTask extends BukkitRunnable {
     }
 
     private void applyTransparency(Player player, EchoTier tier) {
+        Long revealUntil = revealedUntilMillis.get(player.getUniqueId());
+        if (revealUntil != null) {
+            if (System.currentTimeMillis() < revealUntil) {
+                player.removePotionEffect(PotionEffectType.INVISIBILITY);
+                EchoPacketService.revealEquipment(player);
+                return; // forced fully visible for a moment right after landing a hit
+            }
+            revealedUntilMillis.remove(player.getUniqueId());
+        }
+
         double transparentFraction;
         switch (tier) {
             case DISTORTED_ECHO -> transparentFraction = DISTORTED_ECHO_TRANSPARENT_FRACTION;
@@ -125,8 +151,10 @@ public class EchoPassiveTask extends BukkitRunnable {
             player.addPotionEffect(new PotionEffect(
                     PotionEffectType.INVISIBILITY, INVISIBILITY_EFFECT_TICKS, 0, true, false, false
             ));
+            EchoPacketService.hideEquipment(player); // true invisibility: hide worn armor too, not just the body
         } else {
             player.removePotionEffect(PotionEffectType.INVISIBILITY);
+            EchoPacketService.revealEquipment(player);
         }
     }
 
@@ -217,6 +245,8 @@ public class EchoPassiveTask extends BukkitRunnable {
     }
 
     private void cleanupIfNeeded(Player player) {
+        revealedUntilMillis.remove(player.getUniqueId());
+        EchoPacketService.revealEquipment(player); // in case they left mid-flicker with armor hidden from viewers
         if (nametagHidden.remove(player.getUniqueId())) {
             Team team = getOrCreateHiddenTagTeam();
             if (team != null) team.removeEntry(player.getName());
